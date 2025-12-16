@@ -209,6 +209,9 @@ class ZeroComputeMoe(nn.Module):
                 expert_input = x[expert_mask]  # [num_tokens, d_model]
 
                 # Apply expert
+                # This code might not work **please test it greatly**
+                # Tell me if it doesn't work
+                # RohanKhanBD
                 if self.num_zero_experts is None or expert_idx < self.num_experts:
                     expert_output = self.experts[expert_idx](expert_input)
                 else:
