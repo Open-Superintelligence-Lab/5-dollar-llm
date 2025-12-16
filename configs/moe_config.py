@@ -48,8 +48,8 @@ class MoEModelConfig:
     expert_top_k: int = 2
     load_balancing_weight: float = 0.01
     # Zero MoE specific parameters
-    use_zero_moe: bool = True
-    num_zero_experts: int | None = 2
+    use_zero_moe: bool = False
+    num_zero_experts: int | None = None
 
     def __post_init__(self):
         self.d_k = self.d_model // self.n_heads
@@ -117,6 +117,8 @@ class DebugMoEConfig(MoEModelConfig):
     log_milestones: Tuple[int, ...] = (10, 50, 80)
     max_steps: int = 100
     eval_every: int = 10
-    
+
+    use_zero_moe: bool = True
+    num_zero_experts: int | None = 2
     def __post_init__(self):
         super().__post_init__()
