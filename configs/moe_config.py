@@ -47,6 +47,9 @@ class MoEModelConfig:
     num_experts: int = 8
     expert_top_k: int = 2
     load_balancing_weight: float = 0.01
+    # Zero MoE specific parameters
+    use_zero_moe: bool = True
+    num_zero_experts: int | None = 2
 
     def __post_init__(self):
         self.d_k = self.d_model // self.n_heads

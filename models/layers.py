@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchtune.modules import RotaryPositionalEmbeddings
-from .components import MixtureOfExperts
+from .components import MixtureOfExperts, ZeroComputeMoe
 
 
 class Rotary(nn.Module):
@@ -140,6 +140,8 @@ class MoETransformerBlock(nn.Module):
         max_seq_len: int,
         num_experts: int = 8,
         top_k: int = 2,
+        use_zero_moe: bool = False,
+        num_zero_experts: int | None = None,
         dropout: float = 0.1,
     ):
         super().__init__()
@@ -160,7 +162,14 @@ class MoETransformerBlock(nn.Module):
             self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout)
 
         # MoE layer
-        self.feed_forward = MixtureOfExperts(d_model, d_ff, num_experts, top_k, dropout)
+        if use_zero_moe:
+            self.feed_forward = ZeroComputeMoe(
+                d_model, d_ff, num_experts, num_zero_experts, top_k, dropout
+            )
+        else:
+            self.feed_forward = MixtureOfExperts(
+                d_model, d_ff, num_experts, top_k, dropout
+            )
 
         # Normalization layers
         self.norm1 = nn.RMSNorm(d_model)
