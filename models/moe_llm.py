@@ -15,6 +15,13 @@ class MoEMinimalLLM(nn.Module):
 
         # Token embeddings
         self.token_embedding = nn.Embedding(config.vocab_size, config.d_model)
+        
+        # Token smearing: blend each token with 1 position forward token for better context
+        #Uses only first 12 dims to decide blend strength (efficient gating)
+        self.smear_gate = nn.Linear(12, 1, bias=False)
+        self.smear_strength = nn.Parameter(torch.tensor(0.0))
+        nn.init.zeros_(self.smear_gate.weight)  # Start with no smearing
+        
         self.position_dropout = nn.Dropout(config.dropout)
 
         # Transformer blocks with MoE
@@ -59,6 +66,14 @@ class MoEMinimalLLM(nn.Module):
     def forward(self, x, return_aux_loss=True):
         # Token embeddings
         x = self.token_embedding(x) * math.sqrt(self.config.d_model)
+        if x.size(1) > 1:  
+            gate_input = x[:, :-1, :12]
+            gates = torch.sigmoid(self.smear_gate(gate_input))  
+            strength = self.smear_strength * gates 
+            smear_term = strength * x[:, 1:]
+            zeros = torch.zeros(x.size(0), 1, x.size(2), device=x.device, dtype=x.dtype)
+            smear_padded = torch.cat([smear_term, zeros], dim=1)
+            x = x + smear_padded
         x = self.position_dropout(x)
 
         # Collect auxiliary losses from MoE layers
