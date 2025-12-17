@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import math
 from torch.utils.data import DataLoader
 from torch.amp import autocast
-from configs.moe_config import MoEModelConfig
+from configs.llm_config import MoEModelConfig
 
 
 def evaluate_model(model: nn.Module, val_loader: DataLoader, config: MoEModelConfig):
