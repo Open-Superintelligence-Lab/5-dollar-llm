@@ -5,7 +5,7 @@ from .layers import (
     MultiHeadLatentAttention,
     MoETransformerBlock,
 )
-from .moe_llm import MoEMinimalLLM
+from .llm import MoEMinimalLLM
 
 __all__ = [
     "Expert",

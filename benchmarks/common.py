@@ -11,7 +11,7 @@ root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir))
 sys.path.append(str(root_dir))
 
-from models.moe_llm import MoEMinimalLLM
+from models.llm import MoEMinimalLLM
 from configs.llm_config import MoEModelConfig, GPU24GBMoEModelConfig
 
 def load_model_from_checkpoint(checkpoint_path, device='cuda', dtype=torch.bfloat16):

@@ -11,7 +11,7 @@ from torch.amp import autocast, GradScaler
 from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
 from configs.llm_config import MoEModelConfig
-from models.moe_llm import MoEMinimalLLM
+from models.llm import MoEMinimalLLM
 from optimizers.muon import Muon
 from training.evaluation import evaluate_model
 from utils.helpers import set_seed
