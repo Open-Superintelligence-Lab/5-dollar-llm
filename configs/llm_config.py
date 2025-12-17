@@ -26,8 +26,8 @@ class MoEModelConfig:
 
     # Data parameters
     max_seq_len: int = 512
-    num_documents: int = 2000
-    max_tokens: int = 500000
+
+
 
     # Evaluation
     eval_every: int = 10
@@ -47,9 +47,6 @@ class MoEModelConfig:
     num_experts: int = 8
     expert_top_k: int = 2
     load_balancing_weight: float = 0.01
-    # Zero MoE specific parameters
-    use_zero_moe: bool = False
-    num_zero_experts: int | None = None
 
     def __post_init__(self):
         self.d_k = self.d_model // self.n_heads
@@ -78,7 +75,7 @@ class GPU24GBMoEModelConfig(MoEModelConfig):
     
     # Data
     max_seq_len: int = 1024
-    num_documents: int = 25000
+
     
     # Reduced logging
     log_milestones: Tuple[int, ...] = (100, 200, 300)
@@ -111,14 +108,12 @@ class DebugMoEConfig(MoEModelConfig):
     
     # Data
     max_seq_len: int = 128
-    num_documents: int = 100
+
     
     # Reduced logging
     log_milestones: Tuple[int, ...] = (10, 50, 80)
     max_steps: int = 100
     eval_every: int = 10
-
-    use_zero_moe: bool = True
-    num_zero_experts: int | None = 2
+    
     def __post_init__(self):
         super().__post_init__()
