@@ -72,14 +72,14 @@ Once installed, you can train a model using our default configurations.
 To train the main MoE model (configured for a single 24GB GPU like an RTX 3090/4090):
 
 ```bash
-python train_moe.py
+python train_llm.py
 ```
 
 ### Debugging (Any Hardware)
 To quickly check if your code runs without errors on any hardware (including CPU/GPU), use the debug script:
 
 ```bash
-python debug_moe.py
+python debug_llm.py
 ```
 *Runs a `DebugMoEConfig` with a tiny model for 100 steps.*
 
@@ -102,12 +102,29 @@ We maintain baseline performance metrics to track improvements. All experiments 
 
 *Full baseline results are stored in `baselines/gpu_24gb/`.*
 
+### Statistical Significance Analysis (450 Steps)
+To establish a reliable baseline for comparisons and measure system noise, we ran the `GPU24GBMoEModelConfig` for 450 steps across 4 independent runs using the same random seed (42).
+
+| Run | Seed | Val Loss | Val Accuracy | Val Perplexity |
+| :--- | :--- | :--- | :--- | :--- |
+| Run 1 | 42 | 4.1098 | 31.89% | 60.94 |
+| Run 2 | 42 | 4.1009 | 32.00% | 60.40 |
+| Run 3 | 42 | 4.1082 | 31.91% | 60.84 |
+| Run 4 | 42 | 4.1131 | 31.89% | 61.13 |
+
+**Aggregated Results (Mean ± Std Dev):**
+*   **Validation Loss**: 4.1080 ± 0.0045
+*   **Validation Accuracy**: 31.92% ± 0.05%
+*   **Validation Perplexity**: 60.83 ± 0.27
+
+*Future experiments running for 450 steps should be compared against these statistically derived bounds to determine significance.*
+
 ## 🧪 Running Experiments
 
 To run a new experiment without overwriting the baseline, simply provide a unique experiment name:
 
 ```bash
-python train_moe.py --experiment_name my_new_experiment
+python train_llm.py --experiment_name my_new_experiment
 ```
 
 Results (checkpoints and logs) will be saved to `checkpoints/my_new_experiment/` for easy comparison.
@@ -115,7 +132,7 @@ Results (checkpoints and logs) will be saved to `checkpoints/my_new_experiment/`
 > **Performance Test (optional):** We will run the experiments anyways, but you may also run it yourself. Make sure to specify a new name so you don't overwrite the baseline.
 
 ### 4. **Verification & Testing**
-   - **Debug Mode:** Run `python debug_moe.py` to quickly verify your code runs without errors.
+   - **Debug Mode:** Run `python debug_llm.py` to quickly verify your code runs without errors.
    - **Performance Test (optional):** Run your experiment with a unique name to test performance.
 
 ### 5. **Submission**

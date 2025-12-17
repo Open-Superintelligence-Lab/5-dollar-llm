@@ -7,7 +7,7 @@ import json
 import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.utils.data import DataLoader
-from torch.amp import autocast, GradScaler
+from torch.amp import autocast
 from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
 from configs.llm_config import MoEModelConfig
@@ -106,8 +106,6 @@ def train_model(
     
     if schedulers is None:
         schedulers = []
-    
-    scaler = GradScaler() if config.use_amp else None
 
     # Training metrics tracking
     train_start_time = time.time()
@@ -156,7 +154,7 @@ def train_model(
 
             # Forward pass
             if config.use_amp:
-                with autocast('cuda', dtype=torch.float16):
+                with autocast('cuda', dtype=torch.bfloat16):
                     logits, aux_loss = model(x, return_aux_loss=True)
                     shift_logits = logits[:, :-1, :].contiguous()
                     shift_labels = y[:, 1:].contiguous()
@@ -170,7 +168,7 @@ def train_model(
                         total_loss = total_loss + aux_loss
 
                     loss = total_loss / config.gradient_accumulation_steps
-                scaler.scale(loss).backward()
+                loss.backward()
             else:
                 logits, aux_loss = model(x, return_aux_loss=True)
                 shift_logits = logits[:, :-1, :].contiguous()
@@ -190,16 +188,13 @@ def train_model(
             # Optimizer step
             if (step + 1) % config.gradient_accumulation_steps == 0:
                 if config.use_amp:
-                    for optimizer in optimizers:
-                        scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
 
                     for optimizer in optimizers:
-                        scaler.step(optimizer)
+                        optimizer.step()
                         optimizer.zero_grad()
                     for scheduler in schedulers:
                         scheduler.step()
-                    scaler.update()
                 else:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
                     for optimizer in optimizers:

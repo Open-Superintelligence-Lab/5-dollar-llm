@@ -121,5 +121,6 @@ class DebugMoEConfig(MoEModelConfig):
 
     use_zero_moe: bool = True
     num_zero_experts: int | None = 2
+    
     def __post_init__(self):
         super().__post_init__()
