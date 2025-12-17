@@ -13,7 +13,7 @@ from configs.dataset_config import DataConfig
 from training.trainer import train_moe_model
 from utils.helpers import set_seed
 from utils.logger import setup_logging
-from train_moe import prepare_datasets
+from train_llm import prepare_datasets
 
 def main():
     logger = setup_logging(log_dir="./logs_debug")
