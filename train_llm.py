@@ -128,10 +128,30 @@ def main():
     experiment_name = args.experiment_name
     output_dir = os.path.join(args.output_dir, experiment_name)
 
+    # Calculate required documents dynamically
+    # Assume avg 1000 tokens per doc (conservative estimate)
+    # Safety factor 2.0 to ensure enough data
+    avg_tokens_per_doc = 1000
+    safety_factor = 2.0
+    total_tokens_needed = config.max_steps * config.batch_size * config.max_seq_len
+    calc_num_docs = int((total_tokens_needed / avg_tokens_per_doc) * safety_factor)
+    
+    # For very short runs (debugging), we verify we have at least some docs.
+    if calc_num_docs < 100:
+        calc_num_docs = 100
+        
+    print(f"Dynamic Data Calculation:")
+    print(f"  Steps: {config.max_steps}, Batch: {config.batch_size}, Seq: {config.max_seq_len}")
+    print(f"  Total tokens needed: {total_tokens_needed:,}")
+    print(f"  Est. docs needed (factor {safety_factor}): {calc_num_docs:,}")
+    
+    # config.num_documents = calc_num_docs # Removed from config
+    num_docs = calc_num_docs
+
     print("Loading dataset with Hugging Face Datasets API...")
     data_cfg = DataConfig(
         seq_length=config.max_seq_len,
-        num_samples=config.num_documents,
+        num_samples=num_docs,
         cache_dir="./hf_cache",
     )
 
@@ -154,7 +174,7 @@ def main():
             f"Need {total_needed} sequences (max_steps={config.max_steps} * batch_size={config.batch_size}) "
             f"but only have {len(train_ds)} sequences. "
             f"The model will overfit if data repeats. "
-            f"To fix: increase num_documents (currently {config.num_documents}) "
+            f"To fix: increase inferred num_documents (currently {num_docs}) "
             f"or reduce max_steps."
         )
         logger.error(msg)
