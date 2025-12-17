@@ -181,6 +181,7 @@ def main():
     parser.add_argument("--save_every", type=int, help="Override save_every steps")
     parser.add_argument("--batch_size", type=int, help="Override batch_size")
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
+    parser.add_argument("--target_train_loss", type=float, help="Stop training when training loss reaches this value")
     args = parser.parse_args()
 
     # Load Config
@@ -309,7 +310,8 @@ def main():
         val_loader, 
         output_dir=output_dir, 
         experiment_name=experiment_name,
-        load_weights_path=args.load_checkpoint
+        load_weights_path=args.load_checkpoint,
+        target_train_loss=args.target_train_loss
     )
     elapsed = (time.time() - start) / 60
     logger.info("Training complete")

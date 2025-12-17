@@ -2,28 +2,28 @@
 
 > Training is run on 1x4090 RTX.
 
-## ⚡ Fastest To 4.2 Val Loss
-*Goal: Fastest Time to Reach Loss ≤ 4.2*
+## ⚡ Fastest To 6.7 Train Loss
+*Goal: Fastest Time to Reach Loss ≤ 6.7*
 > Everyone is GPU poor, let's make every FLOP count.
 
-| Rank | User | Time | Tokens Used | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Baseline** | Default | TBD | TBD | Running now... |
+| # | Date | Time | Tokens Used | User | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1** | 2025-12-17 | 1m 4s | 2,457,600 | [vukrosic](https://x.com/VukRosic99) | Optimized Baseline (LR 0.02, GradAcc 1) |
 
 ## 🎯 Best Loss @ 67M Tokens
 *Goal: Lowest Validation Loss after 67,000,000 Training Tokens*
 > Once you go big, data is the bottleneck.
 
-| Rank | User | Val Loss | Time | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Baseline** | Default | TBD | TBD | Running now... |
+| # | Date | Val Loss | Time | User | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **-** | 2025-12-17 | TBD | TBD | [vukrosic](https://x.com/VukRosic99) | Baseline (In Progress) |
 
 ## 🏅 The 1B Marathon (World Record)
 *Goal: Best Model @ 1B Tokens (Time < 4h)*
 
-| Rank | User | Val Loss | Time | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Baseline** | Default | TBD | ~2h 40m | Running now... |
+| # | Date | Val Loss | Time | User | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **-** | 2025-12-17 | TBD | ~2h 40m | [vukrosic](https://x.com/VukRosic99) | Baseline (In Progress) |
 
 
 ## 🤝 Compute Sponsorship & Verification

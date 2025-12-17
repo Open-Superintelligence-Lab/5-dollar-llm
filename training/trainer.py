@@ -81,7 +81,8 @@ def train_model(
     experiment_name: Optional[str] = None,
     plot_fn: Optional[Callable] = None,
     extra_config: Optional[Dict[str, Any]] = None,
-):
+    target_train_loss: Optional[float] = None,
+) -> Any:
     """
     Generic training function that can be used by experiments.
     
@@ -219,6 +220,12 @@ def train_model(
                     'ppl': f'{perplexity:.1f}',
                     'lr': f'{current_lr:.5f}'
                 })
+
+                # Target train loss check
+                if target_train_loss is not None and current_loss <= target_train_loss:
+                    print(f"\n🎯 Target train loss {target_train_loss} reached at step {step}!")
+                    stopped_early = True
+                    break
 
             # Evaluation
             if step % config.eval_every == 0 and step > 0:
@@ -386,7 +393,15 @@ def plot_training_metrics(metrics_history: Dict, output_path: Path):
     print(f"   📊 Plots saved to {plot_path}")
 
 
-def train_moe_model(config: Blueberry80GBConfig, train_loader: DataLoader, val_loader: DataLoader, output_dir: Optional[str] = None, experiment_name: Optional[str] = None, load_weights_path: Optional[str] = None):
+def train_moe_model(
+    config: Blueberry80GBConfig,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    output_dir: Optional[str] = None,
+    experiment_name: Optional[str] = None,
+    load_weights_path: Optional[str] = None,
+    target_train_loss: Optional[float] = None
+):
     """
     Train the MoE model with default Muon optimizer setup.
     This is a convenience wrapper around the generic train_model function.
@@ -462,6 +477,7 @@ def train_moe_model(config: Blueberry80GBConfig, train_loader: DataLoader, val_l
         experiment_name=experiment_name,
         plot_fn=None,
         extra_config=None,
+        target_train_loss=target_train_loss,
     )
 
     return model, final_eval, metrics_history
