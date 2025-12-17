@@ -166,6 +166,11 @@ class ZeroComputeMoe(nn.Module):
         self.num_zero_experts = num_zero_experts
         self.top_k = top_k
         self.load_balancing_weight = load_balancing_weight
+        self.total_num_of_experts = (
+            self.num_experts
+            if self.num_zero_experts is None
+            else self.num_experts + self.num_zero_experts
+        )
 
         # Create experts
         self.experts = nn.ModuleList(
@@ -173,7 +178,7 @@ class ZeroComputeMoe(nn.Module):
         )
 
         # Create router
-        self.router = TopKRouter(d_model, num_experts, top_k)
+        self.router = TopKRouter(d_model, self.total_num_of_experts, top_k)
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
@@ -185,11 +190,6 @@ class ZeroComputeMoe(nn.Module):
             - aux_loss: Load balancing auxiliary loss (only during training)
         """
         batch_size, seq_len, d_model = x.shape
-        total_num_of_experts = (
-            self.num_experts
-            if self.num_zero_experts is None
-            else self.num_experts + self.num_zero_experts
-        )
 
         # Get routing decisions
         router_weights, expert_indices, router_probs = self.router(x)
@@ -198,7 +198,7 @@ class ZeroComputeMoe(nn.Module):
         output = torch.zeros_like(x)
 
         # Process each expert
-        for expert_idx in range(total_num_of_experts):
+        for expert_idx in range(self.total_num_of_experts):
             # Find tokens routed to this expert
             expert_mask = (expert_indices == expert_idx).any(
                 dim=-1
@@ -245,13 +245,17 @@ class ZeroComputeMoe(nn.Module):
         This encourages the router to distribute tokens evenly across experts.
         """
         # Compute the fraction of tokens routed to each expert
-        expert_mask = F.one_hot(expert_indices, num_classes=self.num_experts).float()
+        expert_mask = F.one_hot(
+            expert_indices, num_classes=self.total_num_of_experts
+        ).float()
         tokens_per_expert = expert_mask.sum(dim=[0, 1, 2]) / expert_mask.sum()
 
         # Compute the average probability of routing to each expert
         router_prob_mean = router_probs.mean(dim=[0, 1])
 
         # Load balancing loss encourages uniform distribution
-        aux_loss = torch.sum(tokens_per_expert * router_prob_mean) * self.num_experts
+        aux_loss = (
+            torch.sum(tokens_per_expert * router_prob_mean) * self.total_num_of_experts
+        )
 
         return aux_loss * self.load_balancing_weight
