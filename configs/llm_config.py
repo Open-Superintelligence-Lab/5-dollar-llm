@@ -36,8 +36,8 @@ class BlueberryConfig:
     muon_lr: float = 0.015
     muon_momentum: float = 0.95
     adamw_lr: float = 0.001
-    warmup_ratio: float = 0.01
-    schedule_type: str = "cosine"
+    warmup_ratio: float = 0.0
+    schedule_type: str = "constant"
 
     # Evaluation
     eval_every: int = 2000
