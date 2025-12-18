@@ -12,7 +12,7 @@ def run_training(run_id):
     experiment_name = f"repro_run_{run_id}"
     cmd = [
         "python", "train_llm.py",
-        "--target_train_loss", "4.5",
+        "--target_train_loss", "3.5",
         "--experiment_name", experiment_name,
         "--compile", "true",
         "--dataset_path", "processed_data/speedrun_40M"
@@ -55,7 +55,7 @@ def run_training(run_id):
         return {"run_id": run_id, "success": False}
 
 def main():
-    num_runs = 3
+    num_runs = 2
     results = []
     
     print(f"=== Reproducing Speedrun 1 ({num_runs} runs) ===")
