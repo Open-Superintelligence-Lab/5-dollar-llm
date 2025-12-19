@@ -43,6 +43,24 @@ class EarlyStopping:
 
 
 
+def convert_rmsnorm_to_bfloat16(model: nn.Module):
+    """Convert RMSNorm weights to BFloat16 for fused kernel compatibility with AMP.
+
+    PyTorch's fused RMSNorm kernel requires weights to match input dtype.
+    When using AMP with BFloat16, inputs are cast to BFloat16 but weights stay float32,
+    causing the kernel to fall back to unfused implementation (slower).
+    """
+    converted = 0
+    for module in model.modules():
+        if isinstance(module, nn.RMSNorm):
+            if module.weight is not None and module.weight.dtype != torch.bfloat16:
+                module.weight.data = module.weight.data.to(torch.bfloat16)
+                converted += 1
+    if converted > 0:
+        print(f"  ✅ Converted {converted} RMSNorm layers to BFloat16 (fused kernel enabled)")
+    return model
+
+
 def setup_muon_optimizer(model: nn.Module, config: Blueberry80GBConfig):
     """Setup Muon optimizer with hybrid approach"""
     muon_params = []
@@ -485,7 +503,7 @@ def train_minimal_llm(
     set_seed(42)
     model = MinimalLLM(config)
     model = model.to(device)
-    
+
     # Load pretrained weights if specified
     if load_weights_path:
         print(f"Loading pretrained weights from {load_weights_path}...")
