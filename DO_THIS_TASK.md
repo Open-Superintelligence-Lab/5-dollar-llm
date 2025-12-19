@@ -24,7 +24,7 @@ python compare_ffn_types.py
 
 ---
 
-### 🛠️ How to Setup & Contribute
+### 🏎️ Quick Start
 We are conducting this research specifically in the **`relu`** branch. Please follow these steps to contribute:
 
 1. **Fork and Clone**:
