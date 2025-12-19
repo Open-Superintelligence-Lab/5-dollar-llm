@@ -1,6 +1,6 @@
 # 🚀 TASK: Squared ReLU Research
 
-We found a **speedup** by switching from SwiGLU to **Squared ReLU** (from the "[Primer](https://arxiv.org/pdf/2109.08668)" paper) - but the loss curve appears noisy and would benefit from additional experimentation.
+We found a **speedup** by switching from SwiGLU to **Squared ReLU** (from the "[Primer](https://arxiv.org/pdf/2109.08668)" paper) - but it requires additional experimentation and verification.
 
 
 ### 📊 Results (151M Params)
