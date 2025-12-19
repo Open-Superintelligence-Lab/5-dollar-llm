@@ -59,9 +59,8 @@ Our community competes to reach specific training loss milestones in the shortes
 ### ⚡ Speedrun 1: The 4.5 Loss Challenge
 *   **Goal:** Reach a training loss of **≤ 4.5** as quickly as possible.
 *   **Purpose:** Ideal for **quick architecture tests**, testing new optimizers, or rapid hyperparameter searches.
-*   **Rules:** Must follow the [Official Speedrun Rules](LEADERBOARD.md#📜-official-rules) (151M params ± 5%, specific dataset).
-*   **Timing:** Uses an untimed **dummy-data warmup** to isolate compilation overhead from training speed.
-*   **Expected Time:** ~2.5 minutes active training (Record: 3m 2s includes compilation).
+*   **Rules:** Must follow the [Official Speedrun Rules](LEADERBOARD.md#📜-official-rules).
+*   *   **Expected Time:** ~2-3 minutes.
 *   **Command:**
     ```bash
     python train_llm.py \
