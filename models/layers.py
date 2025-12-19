@@ -1,16 +1,72 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchtune.modules import RotaryPositionalEmbeddings
 from .components import SwiGLUFeedForward
+
+# Try to import torchtune, fallback to local implementation
+try:
+    from torchtune.modules import RotaryPositionalEmbeddings
+    TORCHTUNE_AVAILABLE = True
+except ImportError:
+    TORCHTUNE_AVAILABLE = False
+
+
+class FallbackRotaryPositionalEmbeddings(nn.Module):
+    """Fallback RoPE implementation when torchtune is not available."""
+
+    def __init__(self, dim: int, max_seq_len: int = 2048, base: float = 10000.0):
+        super().__init__()
+        self.dim = dim
+        self.max_seq_len = max_seq_len
+        self.base = base
+
+        # Precompute inverse frequencies
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+
+        # Precompute cos/sin cache
+        self._set_cos_sin_cache(max_seq_len)
+
+    def _set_cos_sin_cache(self, seq_len: int):
+        self.max_seq_len_cached = seq_len
+        t = torch.arange(seq_len, device=self.inv_freq.device, dtype=torch.float32)
+        freqs = torch.outer(t, self.inv_freq)
+        emb = torch.cat((freqs, freqs), dim=-1)
+        self.register_buffer("cos_cached", emb.cos(), persistent=False)
+        self.register_buffer("sin_cached", emb.sin(), persistent=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply RoPE to input tensor [B, T, H, D]."""
+        seq_len = x.shape[1]
+
+        if seq_len > self.max_seq_len_cached:
+            self._set_cos_sin_cache(seq_len)
+
+        cos = self.cos_cached[:seq_len].to(x.dtype)
+        sin = self.sin_cached[:seq_len].to(x.dtype)
+
+        # Reshape for broadcasting: [1, T, 1, D]
+        cos = cos.unsqueeze(0).unsqueeze(2)
+        sin = sin.unsqueeze(0).unsqueeze(2)
+
+        # Rotate half
+        x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :]
+        rotated = torch.cat((-x2, x1), dim=-1)
+
+        return x * cos + rotated * sin
 
 
 class Rotary(nn.Module):
     def __init__(self, dim: int, max_seq_len: int):
         super().__init__()
-        self.rope = RotaryPositionalEmbeddings(
-            dim=dim, max_seq_len=max_seq_len, base=10000
-        )
+        if TORCHTUNE_AVAILABLE:
+            self.rope = RotaryPositionalEmbeddings(
+                dim=dim, max_seq_len=max_seq_len, base=10000
+            )
+        else:
+            self.rope = FallbackRotaryPositionalEmbeddings(
+                dim=dim, max_seq_len=max_seq_len, base=10000
+            )
 
     def forward(self, x_BTHD: torch.Tensor):
         # x_BTHD shape: [B, T, H, D] - need to convert to [B, T, H, D] for torchtune

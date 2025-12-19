@@ -1,8 +1,20 @@
 import torch
 import torch.nn.functional as F
+import sys
 
 
-@torch.compile
+def _maybe_compile(fn):
+    """Apply torch.compile only on supported Python versions."""
+    if sys.version_info >= (3, 14):
+        # torch.compile not supported on Python 3.14+
+        return fn
+    try:
+        return torch.compile(fn)
+    except Exception:
+        return fn
+
+
+@_maybe_compile
 def zeropower_via_newtonschulz5(G: torch.Tensor, steps: int = 5) -> torch.Tensor:
     """Newton-Schulz iteration to compute the zeroth power / orthogonalization of G."""
     assert G.ndim >= 2
