@@ -62,4 +62,4 @@ We are conducting this research specifically in the **`relu`** branch. Please fo
    Commit your changes and push to your fork. When opening a PR, ensure the **base branch is set to `relu`** (not `main`).
 
 For a deep dive into the experimental code and discussion, see:
-🔗 **[Pull Request #53: Squared ReLU Experiment](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/53)**
+🔗 **[Squared ReLU Issue](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/issues/49)**
