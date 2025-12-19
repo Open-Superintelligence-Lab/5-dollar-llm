@@ -1,4 +1,5 @@
 # Benchmarking script for FFN types
+import os
 
 import subprocess
 import json
@@ -43,7 +44,7 @@ def run_training(run_id, ff_type, d_ff, experiment_prefix):
         return {"run_id": run_id, "success": False}
 
 def main():
-    runs_per_config = 2
+    runs_per_config = 1
     
     configs = [
         {"name": "SwiGLU (Baseline)", "ff_type": "swiglu", "d_ff": 2048, "prefix": "baseline_swiglu"},

@@ -122,6 +122,8 @@ def train_model(
         'val_perplexities': [],
         'elapsed_times': [],
         'learning_rates': [],
+        'train_losses': [],
+        'train_steps': [],
     }
 
     # Training loop
@@ -219,6 +221,10 @@ def train_model(
                     accuracy = (predictions == y).float().mean().item()
                     perplexity = math.exp(min(current_loss, 20))
                     current_lr = schedulers[0].get_last_lr()[0] if schedulers else optimizers[0].param_groups[0]['lr']
+                
+                # Track training loss
+                metrics_history['train_losses'].append(current_loss)
+                metrics_history['train_steps'].append(step)
 
                 # Update progress bar
                 tokens_per_step = config.batch_size * config.max_seq_len * config.gradient_accumulation_steps

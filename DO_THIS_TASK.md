@@ -1,12 +1,15 @@
 # 🚀 TASK: Squared ReLU Research
 
-We found a **speedup** by switching from SwiGLU to **Squared ReLU** (from the "[Primer](https://arxiv.org/pdf/2109.08668)" paper) - but this needs to be verified.
+We found a **speedup** by switching from SwiGLU to **Squared ReLU** (from the "[Primer](https://arxiv.org/pdf/2109.08668)" paper) - but the loss curve appears noisy and would benefit from additional experimentation.
+
 
 ### 📊 Results (151M Params)
 | Activation | FFN Width ($d_{ff}$) | Time to 4.5 Loss |
 | :--- | :--- | :--- |
 | SwiGLU | 2048 | 1m 59s |
 | **Squared ReLU** | **3072** | **1m 52s** |
+
+![Image](comparison_loss_plot.png)
 
 ### 🏎️ Run Benchmark
 Test it yourself:
