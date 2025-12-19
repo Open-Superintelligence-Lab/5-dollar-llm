@@ -9,6 +9,7 @@ class BlueberryConfig:
     n_heads: int = 8         
     n_layers: int = 32       
     d_ff: int = 2048         
+    feed_forward_type: str = "swiglu"  # "swiglu" or "squared_relu"
     
     # GQA parameters
     n_kv_heads: int = 4      

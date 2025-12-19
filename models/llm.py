@@ -21,6 +21,7 @@ class MinimalLLM(nn.Module):
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(
+                    config,
                     config.d_model,
                     config.n_heads,
                     config.d_ff,

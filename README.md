@@ -1,3 +1,6 @@
+
+> ## **🚀 THIS BRANCH IS FOR SQUARED RELU RESEARCH**. [VIEW TASK](DO_THIS_TASK.md).
+
 # 5-Dollar LLM (Blueberry 151M)
 
 > Training the best possible LLM from scratch for $5.
