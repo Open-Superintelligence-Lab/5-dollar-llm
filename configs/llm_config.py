@@ -39,7 +39,13 @@ class BlueberryConfig:
     dropout: float = 0.0
     grad_clip: float = 1.0
     use_amp: bool = True
-    
+    z_loss_weight: float = 1e-4  # Z-Loss for logit stability (0 to disable)
+
+    # Token Smearing (arXiv research - improves token representations)
+    use_token_smearing: bool = False  # Enable token smearing
+    smear_lambda: float = 0.07  # Smearing strength
+    smear_gate_dim: int = 12  # Input dims for smear gate
+
     # Logging
     log_milestones: Tuple[int, ...] = (100, 500, 1000)
 

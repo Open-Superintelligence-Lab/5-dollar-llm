@@ -187,7 +187,13 @@ def train_model(
                         shift_labels.view(-1)
                     )
 
-                    total_loss = ce_loss
+                    # Z-Loss: Penalize large logit magnitudes for stability
+                    z_loss_weight = getattr(config, 'z_loss_weight', 0.0)
+                    if z_loss_weight > 0:
+                        z_loss = z_loss_weight * shift_logits.float().pow(2).mean()
+                        total_loss = ce_loss + z_loss
+                    else:
+                        total_loss = ce_loss
                     loss = total_loss / config.gradient_accumulation_steps
                 loss.backward()
             else:
@@ -199,7 +205,13 @@ def train_model(
                     shift_labels.view(-1)
                 )
 
-                total_loss = ce_loss
+                # Z-Loss: Penalize large logit magnitudes for stability
+                z_loss_weight = getattr(config, 'z_loss_weight', 0.0)
+                if z_loss_weight > 0:
+                    z_loss = z_loss_weight * shift_logits.float().pow(2).mean()
+                    total_loss = ce_loss + z_loss
+                else:
+                    total_loss = ce_loss
                 loss = total_loss / config.gradient_accumulation_steps
                 loss.backward()
 

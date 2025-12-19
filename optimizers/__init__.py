@@ -1,3 +1,15 @@
-from .muon import Muon, zeropower_via_newtonschulz5
+from .muon import (
+    Muon,
+    NorMuon,
+    MuonPolarExpress,
+    zeropower_via_newtonschulz5,
+    zeropower_via_polar_express,
+)
 
-__all__ = ['Muon', 'zeropower_via_newtonschulz5']
+__all__ = [
+    'Muon',
+    'NorMuon',
+    'MuonPolarExpress',
+    'zeropower_via_newtonschulz5',
+    'zeropower_via_polar_express',
+]

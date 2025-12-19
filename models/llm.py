@@ -17,6 +17,13 @@ class MinimalLLM(nn.Module):
         self.token_embedding = nn.Embedding(config.vocab_size, config.d_model)
         self.position_dropout = nn.Dropout(config.dropout)
 
+        # Token Smearing gate (optional)
+        self.use_token_smearing = getattr(config, 'use_token_smearing', False)
+        if self.use_token_smearing:
+            gate_dim = getattr(config, 'smear_gate_dim', 12)
+            self.smear_gate = nn.Linear(gate_dim, 1, bias=False)
+            self.smear_lambda = getattr(config, 'smear_lambda', 0.07)
+
         # Transformer blocks
         self.transformer_blocks = nn.ModuleList(
             [
@@ -53,6 +60,22 @@ class MinimalLLM(nn.Module):
     def forward(self, x):
         # Token embeddings
         x = self.token_embedding(x) * math.sqrt(self.config.d_model)
+
+        # Token Smearing: Blend current token with previous token
+        # E_smeared[t] = E[t] + λ * sigmoid(W * E[t][:gate_dim]) * E[t-1]
+        if self.use_token_smearing:
+            gate_dim = self.smear_gate.in_features
+            gate_input = x[..., :gate_dim]  # [B, T, gate_dim]
+            gate = torch.sigmoid(self.smear_gate(gate_input))  # [B, T, 1]
+
+            # Shift embeddings for E[t-1] (pad with zeros for t=0)
+            x_prev = torch.cat([
+                torch.zeros_like(x[:, :1, :]),  # Zero for first position
+                x[:, :-1, :]  # Previous embeddings
+            ], dim=1)
+
+            x = x + self.smear_lambda * gate * x_prev
+
         x = self.position_dropout(x)
 
         # Pass through transformer blocks
