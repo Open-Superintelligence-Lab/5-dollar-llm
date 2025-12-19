@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  llm-training:
+    build: .
+    container_name: five-dollar-llm
+    volumes:
+      # Mount the source code for development
+      - .:/app
+      # Mount data directory for datasets
+      - ./data:/app/data
+      # Mount checkpoints directory to persist model checkpoints
+      - ./checkpoints:/app/checkpoints
+      # Mount logs directory
+      - ./logs:/app/logs
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true
+    # Override the default command to start a bash shell
+    command: >
+      bash -c "pip install --no-cache-dir -r requirements.txt &&
+               chmod +x entrypoint.sh &&
+               ./entrypoint.sh"
+
+  # Optional: Add a Jupyter notebook service for experimentation
+  jupyter:
+    build: .
+    container_name: five-dollar-llm-jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+      - ./notebooks:/app/notebooks
+      - ./data:/app/data
+      - ./checkpoints:/app/checkpoints
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      bash -c "pip install jupyterlab &&
+               jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+               --NotebookApp.token='' --NotebookApp.password=''"
+
+volumes:
+  data:
+  checkpoints:
+  logs:
+  notebooks:
