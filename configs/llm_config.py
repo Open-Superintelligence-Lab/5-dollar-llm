@@ -12,7 +12,7 @@ class BlueberryConfig:
     # Model architecture (96M Params - Optimized for Batch 8 throughput)
     d_model: int = 512       
     n_heads: int = 8         
-    n_layers: int = 20     
+    n_layers: int = 24
     d_ff: int = 2048         
     
     # GQA parameters
