@@ -122,6 +122,9 @@ def train_model(
         'val_perplexities': [],
         'elapsed_times': [],
         'learning_rates': [],
+        'train_losses': [],
+        'train_steps': [],
+        'train_elapsed_times': [],
     }
 
     # Training loop
@@ -233,6 +236,12 @@ def train_model(
                 # Console print for visibility
                 if step % (log_every * 10) == 0 or stopped_early:
                     print(f" [Step {step}] Loss: {current_loss:.4f} | Acc: {accuracy:.3f} | LR: {current_lr:.6f}")
+                
+                # Track training progress
+                elapsed_time = (time.time() - train_start_time)
+                metrics_history['train_losses'].append(current_loss)
+                metrics_history['train_steps'].append(step)
+                metrics_history['train_elapsed_times'].append(elapsed_time)
             
             pbar.update(batch_tokens)
             tokens_seen += batch_tokens
@@ -633,6 +642,7 @@ def train_minimal_llm(
             'total_wall_time_seconds': total_wall_time,
             'total_time_minutes': total_wall_time / 60,
             'actual_steps': step,
+            'max_memory_reserved_gb': torch.cuda.max_memory_reserved() / (1024**3),
             'history': metrics_history,
         }
         with open(metrics_file, 'w') as f:
