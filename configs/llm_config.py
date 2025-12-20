@@ -28,10 +28,10 @@ class BlueberryConfig:
     gradient_accumulation_steps: int = 1
     train_tokens: int = 20000000
     
-    # Learning Rate (Aggressive for pre-training with Batch 8)
-    muon_lr: float = 0.02
+    # Learning Rate (Optimized via sweep: muon 0.03 / adamw 0.0063)
+    muon_lr: float = 0.024
     muon_momentum: float = 0.95
-    adamw_lr: float = 0.0012
+    adamw_lr: float = 0.006
     warmup_ratio: float = 0.0
     schedule_type: str = "constant"
 
