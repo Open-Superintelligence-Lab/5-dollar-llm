@@ -21,20 +21,20 @@ To qualify for the **Speedrun** (4.5 loss / 3.5 loss / 1B tokens) leaderboard, y
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **1** | 2025-12-18 | **1m 58s** | **5,472,256** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
 | **2** | 2025-12-20 | **1m 54s** | **8,110,080** | [Vuk Rosić](https://x.com/VukRosic99) | Hyperparam search: batch size doubled 4 to 8, n_layers 32 to 24 to fit into memory, muon lr 0.015 to 0.024 and adamw_lr from 0.001 to 0.006 |
+| **3** | 2025-12-20 | **1m 41s** | **8,257,536** | [Vuk Rosić](https://x.com/VukRosic99) | Squared ReLU FeedForward (Primer-style) instead of SwiGLU. Same hyperparams as #2. Significant speedup due to 1 less linear projection per block and simpler activation. |
 
-> **Record Repeatability / Noise**:
-  - Run 1: 1m 54s, 494 steps
-  - Run 2: 1m 55s, 494 steps
-  - Run 3: 1m 54s, 494 steps
-  - Run 4: 1m 55s, 494 steps
-  - Run 5: 1m 54s, 494 steps
-  - Run 6: 1m 54s, 494 steps
-  - Run 7: 1m 54s, 494 steps
-  - Run 8: 1m 54s, 494 steps
-  - Run 9: 1m 54s, 494 steps
-  - Run 10: 1m 54s, 494 steps
+> **Record Repeatability / Noise (Run 3)**:
+  - Run 1: 1m 41s 466ms, 504 steps
+  - Run 2: 1m 41s 284ms, 504 steps
+  - Run 3: 1m 41s 586ms, 504 steps
+  - Run 4: 1m 41s 547ms, 504 steps
+  - Run 5: 1m 41s 555ms, 504 steps
+  - Run 6: 1m 41s 353ms, 504 steps
+  - Run 7: 1m 41s 394ms, 504 steps
+  - Run 8: 1m 41s 310ms, 504 steps
+  - Run 9: 1m 41s 340ms, 504 steps
 
-New record should be at least 1m 53s to be sure it is not randomness.
+New record should be at least 1m 40s to be sure it is not randomness.
 
 
 

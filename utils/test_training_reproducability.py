@@ -15,8 +15,8 @@ import statistics
 from utils.helpers import format_time
 
 # Configuration
-TARGET_LOSS = 4.5
-NUM_RUNS = 3
+TARGET_LOSS = 3.5
+NUM_RUNS = 5
 
 def run_training(run_id):
     print(f"\n🚀 Starting Run {run_id}...")
@@ -26,7 +26,7 @@ def run_training(run_id):
         "--target_train_loss", str(TARGET_LOSS),
         "--experiment_name", experiment_name,
         "--compile", "true",
-        "--dataset_path", "processed_data/speedrun_40M"
+        "--ff_type", "squared_relu"
     ]
     
     # Small delay between runs to allow GPU to reach consistent state

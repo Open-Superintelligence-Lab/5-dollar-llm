@@ -27,6 +27,7 @@ class MinimalLLM(nn.Module):
                     config.max_seq_len,
                     config.dropout,
                     n_kv_heads=config.n_kv_heads,
+                    ff_type=config.feed_forward_type,
                 )
                 for i in range(config.n_layers)
             ]

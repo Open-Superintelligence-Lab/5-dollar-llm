@@ -13,6 +13,9 @@ class BlueberryConfig:
     # GQA parameters
     n_kv_heads: int = 4      
     
+    # Activation
+    feed_forward_type: str = "swiglu"  # "swiglu" or "squared_relu"
+
     # Data params
     max_seq_len: int = 2048  
     vocab_size: int = 49152  

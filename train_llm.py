@@ -186,6 +186,7 @@ def main():
     parser.add_argument("--target_train_loss", type=float, default=4.5, help="Stop training when training loss reaches this value")
     parser.add_argument("--log_every", type=int, default=1, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
+    parser.add_argument("--ff_type", type=str, help="Feed-forward activation type ('swiglu' or 'squared_relu')")
 
     args = parser.parse_args()
 
@@ -224,6 +225,8 @@ def main():
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
     if args.log_every is not None:
         config.log_every = args.log_every
+    if args.ff_type is not None:
+        config.feed_forward_type = args.ff_type
     
     use_warmup = (args.warmup.lower() == "true")
 
