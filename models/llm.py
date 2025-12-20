@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 import math
 from typing import Optional
-from configs.llm_config import Blueberry80GBConfig
+from configs.llm_config import BlueberryConfig
 from models.layers import TransformerBlock
 
 
 class MinimalLLM(nn.Module):
     """Minimal dense LLM"""
 
-    def __init__(self, config: Blueberry80GBConfig):
+    def __init__(self, config: BlueberryConfig):
         super().__init__()
         self.config = config
 

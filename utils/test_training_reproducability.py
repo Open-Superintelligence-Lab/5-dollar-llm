@@ -1,52 +1,51 @@
 # this script makes sure the speedrun training is reproducible
+# by running training NUM_RUNS times
+# training time should be similar for all runs
 
+import sys
+import os
+
+# Add parent directory to path to allow imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import subprocess
 import json
-import os
 import time
 import statistics
+from utils.helpers import format_time
+
+# Configuration
+TARGET_LOSS = 4.5
+NUM_RUNS = 3
 
 def run_training(run_id):
     print(f"\n🚀 Starting Run {run_id}...")
     experiment_name = f"repro_run_{run_id}"
     cmd = [
         "python", "train_llm.py",
-        "--target_train_loss", "3.5",
+        "--target_train_loss", str(TARGET_LOSS),
         "--experiment_name", experiment_name,
         "--compile", "true",
         "--dataset_path", "processed_data/speedrun_40M"
     ]
     
-    start_time = time.time()
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # Small delay between runs to allow GPU to reach consistent state
+    if run_id > 1:
+        time.sleep(1)
     
-    last_loss = None
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for line in process.stdout:
         print(line, end="")
-        if "Loss:" in line:
-            try:
-                # Extract loss for logging purposes if needed
-                parts = line.split("Loss: ")
-                if len(parts) > 1:
-                    last_loss = float(parts[1].split("|")[0].strip())
-            except:
-                pass
-                
     process.wait()
-    end_time = time.time()
-    duration = end_time - start_time
     
     # Load metrics from json
     metrics_path = f"checkpoints/{experiment_name}/metrics.json"
     if os.path.exists(metrics_path):
         with open(metrics_path, "r") as f:
             data = json.load(f)
-            # The trainer saves actual_steps and total_time_minutes
-            # We can also calculate tokens-per-second etc.
             return {
                 "run_id": run_id,
-                "duration_ms": data.get("total_time_seconds", 0) * 1000 or data.get("total_time_minutes", 0) * 60000,
+                "duration_s": data.get("active_training_time_seconds", 0),
                 "steps": data.get("actual_steps", 0),
                 "success": True
             }
@@ -55,12 +54,12 @@ def run_training(run_id):
         return {"run_id": run_id, "success": False}
 
 def main():
-    num_runs = 2
     results = []
     
-    print(f"=== Reproducing Speedrun 1 ({num_runs} runs) ===")
+    print(f"=== Reproducing Speedrun (Target Loss: {TARGET_LOSS}) ===")
+    print(f"This script will train the model {NUM_RUNS} times to this loss so you can verify consistency.")
     
-    for i in range(1, num_runs + 1):
+    for i in range(1, NUM_RUNS + 1):
         res = run_training(i)
         if res["success"]:
             results.append(res)
@@ -69,7 +68,7 @@ def main():
         print("No successful runs.")
         return
         
-    durations = [r["duration_ms"] for r in results]
+    durations = [r["duration_s"] for r in results]
     steps = [r["steps"] for r in results]
     
     print("\n" + "="*50)
@@ -78,15 +77,17 @@ def main():
     print(f"Number of runs: {len(results)}")
     
     if len(durations) > 1:
-        print(f"Time (ms):   Mean = {statistics.mean(durations):.0f}ms, StdDev = {statistics.stdev(durations):.2f}ms")
+        mean_dur = statistics.mean(durations)
+        std_dur = statistics.stdev(durations)
+        print(f"Time:        Mean = {format_time(mean_dur)}, StdDev = {std_dur:.2f}s")
         print(f"Steps:       Mean = {statistics.mean(steps):.2f}, StdDev = {statistics.stdev(steps):.2f}")
     else:
-        print(f"Time (ms):   {durations[0]:.0f}ms")
+        print(f"Time:        {format_time(durations[0])}")
         print(f"Steps:       {steps[0]}")
         
     print("\nDetailed Results:")
     for r in results:
-        print(f"  Run {r['run_id']}: {r['duration_ms']:.0f}ms, {r['steps']} steps")
+        print(f"  Run {r['run_id']}: {format_time(r['duration_s'])}, {r['steps']} steps")
 
 if __name__ == "__main__":
     main()

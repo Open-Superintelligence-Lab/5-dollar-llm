@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 # Fix tokenizer parallelism warning when using DataLoader workers
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-from configs.llm_config import Blueberry80GBConfig, Blueberry24GBConfig
+from configs.llm_config import BlueberryConfig
 from configs.dataset_config import DataConfig
 from training.trainer import train_minimal_llm
 from utils.helpers import set_seed, format_time
@@ -175,7 +175,7 @@ def main():
     parser.add_argument("--train_tokens", type=int, help="Override train_tokens")
     parser.add_argument("--experiment_name", type=str, default="speedrun_4.5", help="Name of the experiment")
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
-    parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.Blueberry24GBConfig)")
+    parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
     parser.add_argument("--compile", type=str, help="Whether to compile the model (true/false)")
     parser.add_argument("--dataset_path", type=str, help="Path to preprocessed dataset directory")
@@ -203,7 +203,7 @@ def main():
             raise e
     else:
         # Default to the optimized Pow2 config
-        config = Blueberry24GBConfig()
+        config = BlueberryConfig()
 
     # Override config with args
     if args.muon_lr is not None:
@@ -300,11 +300,8 @@ def main():
     print(f"vocab size: {config.vocab_size}\n")
     logger.info(f"Model configuration: {vars(config)}")
 
-    print("Starting training...")
-    print("-" * 70)
-    
-    # Train the model (checkpoint loading handled by trainer if load_checkpoint is provided)
-    results = train_minimal_llm(
+    # Train the model
+    train_minimal_llm(
         config, 
         train_loader, 
         val_loader, 
@@ -312,32 +309,7 @@ def main():
         experiment_name=experiment_name,
         load_weights_path=args.load_checkpoint,
         target_train_loss=args.target_train_loss,
-        # warmup=use_warmup
     )
-    
-    model, metrics, _, setup_time, training_time = results
-    logger.info("Training complete")
-
-    print("\nResults")
-    print("-" * 70)
-    print(f"Setup & Compilation: {setup_time:.2f}s")
-    print(f"Active Training:     {format_time(training_time)}")
-    print(f"Total Wall Time:     {format_time(setup_time + training_time)}")
-    print(f"Val loss:       {metrics['val_loss']:.4f}")
-    print(f"Val accuracy:   {metrics['val_accuracy']:.4f}")
-    print(f"Val perplexity: {metrics['val_perplexity']:.2f}")
-    logger.info(f"Final metrics: {metrics}")
-
-    ckpt_path = os.path.join(output_dir, "final_model.pt")
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(
-        {"model_state_dict": model.state_dict(),
-         "config": config,
-         "metrics": metrics},
-        ckpt_path,
-    )
-    print(f"Model checkpoint saved to {ckpt_path}")
-    logger.info(f"Model saved to {ckpt_path}")
 
 
 if __name__ == "__main__":

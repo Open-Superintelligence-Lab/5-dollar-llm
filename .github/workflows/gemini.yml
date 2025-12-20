@@ -1,0 +1,28 @@
+# name: Run Gemini CLI
+
+# on:
+#   workflow_dispatch:
+
+# jobs:
+#   run-gemini:
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+      
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+      
+#       - name: Install Gemini CLI
+#         run: npm install -g @google/gemini-cli
+      
+#       - name: Run Gemini help command
+#         run: gemini --help
+      
+#       - name: Run Gemini prompt
+#         env:
+#           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+#         run: gemini -p "Hello Gemini, give me a short motivational quote"

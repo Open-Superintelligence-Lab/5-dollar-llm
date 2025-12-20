@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.amp import autocast
 from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
-from configs.llm_config import Blueberry80GBConfig
+from configs.llm_config import BlueberryConfig
 from models.llm import MinimalLLM
 from optimizers.muon import Muon
 from training.evaluation import evaluate_model
@@ -62,6 +62,7 @@ def convert_rmsnorm_to_bfloat16(model: nn.Module):
 
 
 def setup_muon_optimizer(model: nn.Module, config: Blueberry80GBConfig):
+def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
     """Setup Muon optimizer with hybrid approach"""
     muon_params = []
     adamw_params = []
@@ -90,7 +91,7 @@ def setup_muon_optimizer(model: nn.Module, config: Blueberry80GBConfig):
 
 def train_model(
     model: nn.Module,
-    config: Blueberry80GBConfig,
+    config: BlueberryConfig,
     train_loader: DataLoader,
     val_loader: DataLoader,
     optimizers: List[torch.optim.Optimizer],
@@ -129,6 +130,9 @@ def train_model(
         schedulers = []
 
     # Training metrics tracking
+    # Synchronize CUDA to ensure accurate timing (no queued operations)
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     train_start_time = time.time()
     metrics_history = {
         'steps': [],
@@ -327,13 +331,11 @@ def train_model(
                 'val_perplexity': perplexity if 'perplexity' in locals() else 0.0,
             }
     
+    # Synchronize CUDA to ensure all operations are complete before ending timer
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     total_time_seconds = time.time() - train_start_time
     
-    print(f"\n📊 Final Results:")
-    print(f"   Val Loss: {final_eval['val_loss']:.4f}")
-    print(f"   Val Accuracy: {final_eval['val_accuracy']:.4f}")
-    print(f"   Val Perplexity: {final_eval['val_perplexity']:.2f}")
-    print(f"   Total Time: {format_time(total_time_seconds)}")
     if stopped_early:
         print(f"   ⚠️  Training stopped early at step {step}")
     
@@ -374,7 +376,13 @@ def train_model(
         }, checkpoint_path)
         print(f"   💾 Model saved to {checkpoint_path}")
     
-    return model, final_eval, metrics_history
+    return {
+        'model': model,
+        'final_metrics': final_eval,
+        'metrics_history': metrics_history,
+        'training_time': total_time_seconds,
+        'steps': step
+    }
 
 
 def plot_training_metrics(metrics_history: Dict, output_path: Path):
@@ -435,7 +443,7 @@ def plot_training_metrics(metrics_history: Dict, output_path: Path):
 
 def warmup_compiled_kernels(
     model: nn.Module,
-    config: Blueberry80GBConfig,
+    config: BlueberryConfig,
     train_loader: DataLoader,
     device: torch.device,
     num_steps: int = 3
@@ -497,7 +505,7 @@ def warmup_compiled_kernels(
     print("✅ Kernels compiled and cached")
 
 def train_minimal_llm(
-    config: Blueberry80GBConfig,
+    config: BlueberryConfig,
     train_loader: DataLoader,
     val_loader: DataLoader,
     output_dir: Optional[str] = None,
@@ -612,17 +620,21 @@ def train_minimal_llm(
     # ============================================
     # 9. Train from scratch (fresh iterator created internally)
     # ============================================
+    # Clear GPU cache and synchronize to ensure consistent starting state
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
     train_start = time.time()
     
-    model, final_eval, metrics_history = train_model(
+    results = train_model(
         model=model,
         config=config,
-        train_loader=train_loader,  # Creates fresh iterator in train_model
+        train_loader=train_loader,
         val_loader=val_loader,
         optimizers=optimizers,
         schedulers=schedulers,
         early_stopper=None,
-        output_dir=output_dir,
+        output_dir=None,
         experiment_name=experiment_name,
         plot_fn=None,
         extra_config=None,
@@ -630,6 +642,60 @@ def train_minimal_llm(
         log_every=getattr(config, 'log_every', 100),
     )
     
-    total_training_time = time.time() - train_start
+    total_training_time = results['training_time']
+    total_wall_time = setup_time + total_training_time
+    final_eval = results['final_metrics']
+    metrics_history = results['metrics_history']
+    step = results['steps']
 
-    return model, final_eval, metrics_history, setup_time, total_training_time
+    # ============================================
+    # 10. Unified Saving & Reporting
+    # ============================================
+    if output_dir:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # Save comprehensive metrics
+        metrics_file = output_path / "metrics.json"
+        metrics_data = {
+            'final_metrics': final_eval,
+            'setup_time_seconds': setup_time,
+            'active_training_time_seconds': total_training_time,
+            'total_wall_time_seconds': total_wall_time,
+            'total_time_minutes': total_wall_time / 60,
+            'actual_steps': step,
+            'history': metrics_history,
+        }
+        with open(metrics_file, 'w') as f:
+            json.dump(metrics_data, f, indent=2)
+            
+        # Save model
+        checkpoint_path = output_path / "model.pt"
+        torch.save({
+            'model_state_dict': results['model'].state_dict(),
+            'config': config,
+            'metrics': final_eval,
+        }, checkpoint_path)
+        
+        # Plot
+        plot_training_metrics(metrics_history, output_path)
+    
+    # Final Output
+    print("\n" + "="*70)
+    print("� SPEEDRUN RESULTS")
+    print("="*70)
+    print(f"Warmup & Setup:                  {setup_time:.2f}s")
+    print(f"Training Time (⏱️ Speedrun):      {format_time(total_training_time)}")
+    print("-" * 70)
+    print(f"Final Val Loss:                  {final_eval['val_loss']:.4f}")
+    print(f"Final Val Accuracy:              {final_eval['val_accuracy']:.4f}")
+    print("="*70 + "\n")
+
+    return {
+        'model': results['model'],
+        'metrics': final_eval,
+        'history': metrics_history,
+        'setup_time': setup_time,
+        'training_time': total_training_time,
+        'steps': step
+    }
