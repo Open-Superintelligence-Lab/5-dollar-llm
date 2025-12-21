@@ -50,7 +50,7 @@ class MinimalLLM(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, x):
+    def forward(self, x, labels=None):
         # Token embeddings
         x = self.token_embedding(x) * math.sqrt(self.config.d_model)
         x = self.position_dropout(x)
@@ -64,4 +64,22 @@ class MinimalLLM(nn.Module):
         x = self.output_dropout(x)
         logits = self.lm_head(x)
 
-        return logits
+        # If no labels provided, return logits
+        if labels is None:
+            return logits
+        
+        # Compute loss and accuracy
+        # Shift for causal LM: predict next token
+        shift_logits = logits[:, :-1, :].contiguous()
+        shift_labels = labels[:, 1:].contiguous()
+        
+        loss = nn.functional.cross_entropy(
+            shift_logits.view(-1, self.config.vocab_size),
+            shift_labels.view(-1)
+        )
+        
+        # Compute accuracy
+        predictions = shift_logits.argmax(dim=-1)
+        accuracy = (predictions == shift_labels).float().mean()
+        
+        return {'loss': loss, 'accuracy': accuracy}
