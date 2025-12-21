@@ -42,24 +42,17 @@ def evaluate_model(model: nn.Module, val_loader: DataLoader, config: BlueberryCo
                 attention_mask = attention_mask.to(device)
 
             with autocast('cuda', dtype=torch.float16, enabled=config.use_amp):
-                # Dense model evaluation
-                logits = model(x)
-                # Shift for causal LM: predict next token
-                shift_logits = logits[:, :-1, :].contiguous()
-                shift_labels = y[:, 1:].contiguous()
-                loss = F.cross_entropy(
-                    shift_logits.view(-1, config.vocab_size),
-                    shift_labels.view(-1)
-                )
+                # Model now returns loss and accuracy directly
+                output = model(x, labels=y)
+                loss = output['loss']
+                accuracy = output['accuracy']
 
             # Count tokens correctly (we lose one token per sequence due to shifting)
-            num_tokens = shift_labels.numel()
+            num_tokens = (y.shape[0] * (y.shape[1] - 1))  # batch_size * (seq_len - 1)
             total_loss += loss.item() * num_tokens
             
             total_tokens += num_tokens
-
-            predictions = shift_logits.argmax(dim=-1)
-            total_correct += (predictions == shift_labels).sum().item()
+            total_correct += accuracy.item() * num_tokens
 
     avg_loss = total_loss / total_tokens
     accuracy = total_correct / total_tokens
