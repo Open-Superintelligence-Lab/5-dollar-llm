@@ -23,7 +23,7 @@ To qualify for the **Speedrun** (4.5 loss / 3.5 loss / 1B tokens) leaderboard, y
 | **2** | 2025-12-20 | **1m 54s** | **8,110,080** | [Vuk Rosić](https://x.com/VukRosic99) | Hyperparam search: batch size doubled 4 to 8, n_layers 32 to 24 to fit into memory, muon lr 0.015 to 0.024 and adamw_lr from 0.001 to 0.006 |
 | **3** | 2025-12-20 | **1m 41s** | **8,257,536** | [Vuk Rosić](https://x.com/VukRosic99) | Squared ReLU FeedForward (Primer-style) instead of SwiGLU. Same hyperparams as #2. Significant speedup due to 1 less linear projection per block and simpler activation. |
 
-> **Record Repeatability / Noise (Run 3)**:
+> **Record Repeatability / Noise**:
   - Run 1: 1m 41s 466ms, 504 steps
   - Run 2: 1m 41s 284ms, 504 steps
   - Run 3: 1m 41s 586ms, 504 steps
@@ -46,6 +46,14 @@ New record should be at least 1m 40s to be sure it is not randomness.
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **1** | 2025-12-18 | **6m 47s** | **17,539,072** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
 | **2** | 2025-12-20 | **4m 50s to 4m 51s** | **20,004,864** | [Vuk Rosić](https://x.com/VukRosic99) | Hyperparam search: batch size doubled 4 to 8, n_layers 32 to 24 to fit into memory, muon_lr 0.015 to 0.024 and adamw_lr from 0.001 to 0.006 |
+
+
+> **Record Repeatability / Noise**:
+  - Run 1: 5m 32s 50ms, 1221 steps
+  - Run 2: 5m 7s 933ms, 1221 steps
+  - Run 3: 5m 7s 927ms, 1221 steps
+  - Run 4: 5m 7s 822ms, 1221 steps
+  - Run 5: 5m 9s 158ms, 1221 steps
 
 ## 🗂️ More categories coming soon
 - You may suggest: goal is to interpolate between fast experimentation and confirming it works on big models.

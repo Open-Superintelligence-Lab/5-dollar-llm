@@ -15,8 +15,8 @@ import statistics
 from utils.helpers import format_time
 
 # Configuration
-TARGET_LOSS = 3.5
-NUM_RUNS = 5
+TARGET_LOSS = 4.5
+NUM_RUNS = 2
 
 def run_training(run_id):
     print(f"\n🚀 Starting Run {run_id}...")

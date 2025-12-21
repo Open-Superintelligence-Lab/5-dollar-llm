@@ -415,19 +415,19 @@ def warmup_compiled_kernels(
     model: nn.Module,
     config: BlueberryConfig,
     train_loader: DataLoader,
+    val_loader: DataLoader,
     device: torch.device,
     num_steps: int = 3
 ) -> None:
     """
-    Warm up all compiled kernels (forward, backward, optimizer).
+    Warm up all compiled kernels (forward, backward, optimizer, and eval).
     Caller is responsible for resetting state afterwards.
     """
-    print(f"🔥 Warming up kernels ({num_steps} steps)...")
+    print(f"🔥 Warming up kernels ({num_steps} steps train + 1 step eval)...")
+    
+    # 1. Warm up training path
     model.train()
-    
-    # Temporary optimizer to warm up optimizer kernels too
     temp_optimizers = setup_muon_optimizer(model, config)
-    
     warmup_iter = iter(train_loader)
     
     for _ in range(num_steps):
@@ -460,19 +460,22 @@ def warmup_compiled_kernels(
             )
             loss.backward()
         
-        # Optimizer step (warms up optimizer kernels)
+        # Optimizer step
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
         for opt in temp_optimizers:
             opt.step()
             opt.zero_grad()
     
+    # 2. Warm up evaluation path (different graph due to model.eval() and no_grad)
+    evaluate_model(model, val_loader, config)
+    
     torch.cuda.synchronize()
     
-    # Cleanup temp optimizers
+    # Cleanup
     del temp_optimizers
     torch.cuda.empty_cache()
     
-    print("✅ Kernels compiled and cached")
+    print("✅ Kernels compiled and cached (Train & Eval)")
 
 def train_minimal_llm(
     config: BlueberryConfig,
@@ -523,7 +526,7 @@ def train_minimal_llm(
             # ============================================
             # 4. Warm up kernels (dirties model state)
             # ============================================
-            warmup_compiled_kernels(model, config, train_loader, device, num_steps=3)
+            warmup_compiled_kernels(model, config, train_loader, val_loader, device, num_steps=3)
             
             # ============================================
             # 5. Reset model to initial state
