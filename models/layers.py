@@ -6,16 +6,31 @@ from .components import SwiGLUFeedForward
 
 
 class Rotary(nn.Module):
-    def __init__(self, dim: int, max_seq_len: int):
+    def __init__(self, dim: int, max_seq_len: int, base: int = 10000):
         super().__init__()
+        self.dim = dim
+        self.base = base
+        self._max_seq_len = max_seq_len
+        self._init_rope(max_seq_len)
+
+    def _init_rope(self, max_seq_len: int):
         self.rope = RotaryPositionalEmbeddings(
-            dim=dim, max_seq_len=max_seq_len, base=10000
+            dim=self.dim, max_seq_len=max_seq_len, base=self.base
         )
+        self._max_seq_len = max_seq_len
 
     def forward(self, x_BTHD: torch.Tensor):
         # x_BTHD shape: [B, T, H, D] - need to convert to [B, T, H, D] for torchtune
         # torchtune expects [batch, seq_len, num_heads, head_dim]
         # Our input is already [B, T, H, D] which matches torchtune's expectation
+
+        seq_len = x_BTHD.size(1)
+        
+        # If sequence longer than cache, reinitialize
+        if seq_len > self._max_seq_len:
+            self._init_rope(seq_len)
+            self.rope = self.rope.to(x_BTHD.device)
+        
         return self.rope(x_BTHD)
 
 
