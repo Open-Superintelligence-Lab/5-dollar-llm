@@ -3,12 +3,14 @@ import time
 import os
 import torch
 import logging
+import random
+import numpy as np
 from torch.utils.data import DataLoader
 
 # Fix tokenizer parallelism warning when using DataLoader workers
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-from configs.llm_config import Blueberry80GBConfig, Blueberry24GBConfig
+from configs.llm_config import BlueberryConfig
 from configs.dataset_config import DataConfig
 from training.trainer import train_minimal_llm
 from utils.helpers import set_seed, format_time
@@ -173,7 +175,7 @@ def main():
     parser.add_argument("--train_tokens", type=int, help="Override train_tokens")
     parser.add_argument("--experiment_name", type=str, default="speedrun_4.5", help="Name of the experiment")
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
-    parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.Blueberry24GBConfig)")
+    parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
     parser.add_argument("--compile", type=str, help="Whether to compile the model (true/false)")
     parser.add_argument("--dataset_path", type=str, help="Path to preprocessed dataset directory")
@@ -183,6 +185,7 @@ def main():
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--target_train_loss", type=float, default=4.5, help="Stop training when training loss reaches this value")
     parser.add_argument("--log_every", type=int, default=1, help="Logging frequency in steps")
+    parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
 
     args = parser.parse_args()
 
@@ -200,7 +203,7 @@ def main():
             raise e
     else:
         # Default to the optimized Pow2 config
-        config = Blueberry24GBConfig()
+        config = BlueberryConfig()
 
     # Override config with args
     if args.muon_lr is not None:
@@ -221,6 +224,8 @@ def main():
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
     if args.log_every is not None:
         config.log_every = args.log_every
+    
+    use_warmup = (args.warmup.lower() == "true")
 
     
     experiment_name = args.experiment_name
@@ -264,14 +269,27 @@ def main():
     
     logger.info(f"Train sequences: {len(train_ds):,}, Val sequences: {len(val_ds):,}")
 
+    # Worker init function to ensure each worker has a deterministic seed
+    def worker_init_fn(worker_id):
+        worker_seed = 42 + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+    # Generator for reproducible shuffling
+    g = torch.Generator()
+    g.manual_seed(42)
+
     loader_args = dict(
         batch_size=config.batch_size,
         num_workers=2,
         pin_memory=torch.cuda.is_available(),
         persistent_workers=True,
+        worker_init_fn=worker_init_fn,
+        generator=g,
     )
     train_loader = DataLoader(train_ds, shuffle=True, **loader_args)
     val_loader = DataLoader(val_ds, shuffle=False, **loader_args)
+
 
     print("\nModel configuration")
     print("-" * 70)
@@ -282,41 +300,16 @@ def main():
     print(f"vocab size: {config.vocab_size}\n")
     logger.info(f"Model configuration: {vars(config)}")
 
-    print("Starting training...")
-    print("-" * 70)
-    start = time.time()
-
-    # Train the model (checkpoint loading handled by trainer if load_checkpoint is provided)
-    model, metrics, _ = train_minimal_llm(
+    # Train the model
+    train_minimal_llm(
         config, 
         train_loader, 
         val_loader, 
         output_dir=output_dir, 
         experiment_name=experiment_name,
         load_weights_path=args.load_checkpoint,
-        target_train_loss=args.target_train_loss
+        target_train_loss=args.target_train_loss,
     )
-    total_seconds = time.time() - start
-    logger.info("Training complete")
-
-    print("\nResults")
-    print("-" * 70)
-    print(f"Training time: {format_time(total_seconds)}")
-    print(f"Val loss:       {metrics['val_loss']:.4f}")
-    print(f"Val accuracy:   {metrics['val_accuracy']:.4f}")
-    print(f"Val perplexity: {metrics['val_perplexity']:.2f}")
-    logger.info(f"Final metrics: {metrics}")
-
-    ckpt_path = os.path.join(output_dir, "final_model.pt")
-    os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
-    torch.save(
-        {"model_state_dict": model.state_dict(),
-         "config": config,
-         "metrics": metrics},
-        ckpt_path,
-    )
-    print(f"Model checkpoint saved to {ckpt_path}")
-    logger.info(f"Model saved to {ckpt_path}")
 
 
 if __name__ == "__main__":

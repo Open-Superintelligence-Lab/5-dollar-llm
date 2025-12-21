@@ -19,7 +19,6 @@ cd 5-dollar-llm
 ### Install Dependencies
 ```bash
 pip install -r requirements.txt
-pip install huggingface_hub  # Required for data download
 ```
 
 ### Option A: Quick Start (40M Tokens) - Recommended for Speedruns
@@ -56,10 +55,11 @@ print('✅ Full Data Ready!')
 
 Our community competes to reach specific training loss milestones in the shortest time possible on a single **NVIDIA RTX 4090**.
 
-### ⚡ The 4.5 Loss Speedrun
-*   **Goal:** Reach a training loss of **≤ 4.5**.
+### ⚡ Speedrun 1: The 4.5 Loss Challenge
+*   **Goal:** Reach a training loss of **≤ 4.5** as quickly as possible.
 *   **Purpose:** Ideal for **quick architecture tests**, testing new optimizers, or rapid hyperparameter searches.
-*   **Expected Time:** ~3 minutes.
+*   **Rules:** Must follow the [Official Speedrun Rules](LEADERBOARD.md#📜-official-rules).
+*   *   **Expected Time:** ~2-3 minutes.
 *   **Command:**
     ```bash
     python train_llm.py \

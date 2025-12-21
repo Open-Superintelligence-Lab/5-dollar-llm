@@ -2,18 +2,43 @@
 
 > Training is run on 1x4090 RTX.
 
-- Model size must stay within ±5% of 151M parameters (approximately 143M–159M).
+Usually we will do research together to be able to beat records, but you may also do it alone.
 
+## 📜 Official Rules
+
+To qualify for the **Speedrun** (4.5 loss / 3.5 loss / 1B tokens) leaderboard, your run must follow these rules:
+
+1.  Surpass the record (training loss of **≤ 4.5**, training loss of **≤ 3.5**, fastest training time or lowest validation loss on **1B tokens**).
+2.  Use the data mentioned in the [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md)
+3.  The official metric is **Active Training Time**. Setup and compilation overhead (`Setup & Compilation Time`) is excluded.
+4.  Keep the added code minimal, clean and readable.
+
+### ⚠️ If you are unable to reproduce our results on RTX 4090, you may have different CPU, PCIe Bandwidth, or Thermal Throttling. We always recommend measuring your baseline first then comparing against your changes.
 
 ## ⚡ Fastest To 4.5 Train Loss
 *Goal: Fastest Time to Reach Loss ≤ 4.5*
-> Everyone is GPU poor, let's make every FLOP count.
+> First benchmark is faster to experiment on. We can later find what transfers to the longer training.
 
 | # | Date | Time | Tokens Used | User | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1** | 2025-12-18 | **3m 2s** | **6,086,656** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
+| **1** | 2025-12-18 | **1m 58s** | **5,472,256** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
+| **2** | 2025-12-20 | **1m 54s** | **8,110,080** | [Vuk Rosić](https://x.com/VukRosic99) | Hyperparam search: batch size doubled 4 to 8, n_layers 32 to 24 to fit into memory, muon lr 0.015 to 0.024 and adamw_lr from 0.001 to 0.006 |
 
-> First benchmark is faster to itterate. Every few records we can search and combine them to see what transfers to the longer training well.
+> **Record Repeatability / Noise**:
+  - Run 1: 1m 54s, 494 steps
+  - Run 2: 1m 55s, 494 steps
+  - Run 3: 1m 54s, 494 steps
+  - Run 4: 1m 55s, 494 steps
+  - Run 5: 1m 54s, 494 steps
+  - Run 6: 1m 54s, 494 steps
+  - Run 7: 1m 54s, 494 steps
+  - Run 8: 1m 54s, 494 steps
+  - Run 9: 1m 54s, 494 steps
+  - Run 10: 1m 54s, 494 steps
+
+New record should be at least 1m 53s to be sure it is not randomness.
+
+
 
 
 ## ⚡ Fastest To 3.5 Train Loss
@@ -21,7 +46,8 @@
 
 | # | Date | Time | Tokens Used | User | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1** | 2025-12-18 | **9m 7s** | **18,767,872** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
+| **1** | 2025-12-18 | **6m 47s** | **17,539,072** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
+| **2** | 2025-12-20 | **4m 50s to 4m 51s** | **20,004,864** | [Vuk Rosić](https://x.com/VukRosic99) | Hyperparam search: batch size doubled 4 to 8, n_layers 32 to 24 to fit into memory, muon_lr 0.015 to 0.024 and adamw_lr from 0.001 to 0.006 |
 
 ## 🗂️ More categories coming soon
 - You may suggest: goal is to interpolate between fast experimentation and confirming it works on big models.

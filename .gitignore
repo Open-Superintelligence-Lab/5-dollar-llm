@@ -233,3 +233,9 @@ logs_debug/
 !baselines/*.json
 !baselines/**/*.json
 !docs/timecapsule/**/*
+
+# gemini-cli settings
+.gemini/
+
+# GitHub App credentials
+gha-creds-*.json

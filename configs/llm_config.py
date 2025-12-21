@@ -7,7 +7,7 @@ class BlueberryConfig:
     # Model architecture (151M Params - Blueberry-Nano)
     d_model: int = 512       
     n_heads: int = 8         
-    n_layers: int = 32       
+    n_layers: int = 24    
     d_ff: int = 2048         
     
     # GQA parameters
@@ -18,15 +18,15 @@ class BlueberryConfig:
     vocab_size: int = 49152  
     
     # Base Training Defaults
-    compile_model: bool = False
-    batch_size: int = 4
+    compile_model: bool = True
+    batch_size: int = 8
     gradient_accumulation_steps: int = 1
     train_tokens: int = 20000000
     
     # Learning Rate (Aggressive for pre-training)
-    muon_lr: float = 0.015
+    muon_lr: float = 0.024
     muon_momentum: float = 0.95
-    adamw_lr: float = 0.001
+    adamw_lr: float = 0.006
     warmup_ratio: float = 0.0
     schedule_type: str = "constant"
 
@@ -47,15 +47,3 @@ class BlueberryConfig:
         self.d_k = self.d_model // self.n_heads
         assert self.d_model % self.n_heads == 0, "d_model must be divisible by n_heads"
 
-
-@dataclass
-class Blueberry24GBConfig(BlueberryConfig):
-    # Optimized for RTX 4090 (24GB)
-    pass
-
-
-@dataclass
-class Blueberry80GBConfig(BlueberryConfig):
-    # Optimized for H100 (80GB)
-    batch_size: int = 128
-    gradient_accumulation_steps: int = 2
