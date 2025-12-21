@@ -110,6 +110,8 @@ def train_model(
     if schedulers is None:
         schedulers = []
 
+    current_loss_val = 0.0
+
     # Training metrics tracking
     # Synchronize CUDA to ensure accurate timing (no queued operations)
     if torch.cuda.is_available():
@@ -161,63 +163,61 @@ def train_model(
             # Count tokens in this batch (approx: batch_size * seq_len)
             batch_tokens = x.numel()
 
-            # Forward pass
+            # Forward pass (optimized to avoid large contiguous copies of logits)
             if config.use_amp:
                 with autocast('cuda', dtype=torch.bfloat16):
                     logits = model(x)
-                    shift_logits = logits[:, :-1, :].contiguous()
-                    shift_labels = y[:, 1:].contiguous()
+                    # Shift labels instead of logits to save ~3GB VRAM
+                    # We set the last token to -100 so cross_entropy ignores it
+                    shift_labels = torch.full_like(y, -100)
+                    shift_labels[:, :-1] = y[:, 1:]
+                    
                     ce_loss = F.cross_entropy(
-                        shift_logits.view(-1, config.vocab_size),
-                        shift_labels.view(-1)
+                        logits.view(-1, config.vocab_size),
+                        shift_labels.view(-1),
+                        ignore_index=-100
                     )
-
-                    total_loss = ce_loss
-                    loss = total_loss / config.gradient_accumulation_steps
+                    loss = ce_loss / config.gradient_accumulation_steps
                 loss.backward()
             else:
                 logits = model(x)
-                shift_logits = logits[:, :-1, :].contiguous()
-                shift_labels = y[:, 1:].contiguous()
+                shift_labels = torch.full_like(y, -100)
+                shift_labels[:, :-1] = y[:, 1:]
+                
                 ce_loss = F.cross_entropy(
-                    shift_logits.view(-1, config.vocab_size),
-                    shift_labels.view(-1)
+                    logits.view(-1, config.vocab_size),
+                    shift_labels.view(-1),
+                    ignore_index=-100
                 )
-
-                total_loss = ce_loss
-                loss = total_loss / config.gradient_accumulation_steps
+                loss = ce_loss / config.gradient_accumulation_steps
                 loss.backward()
 
             # Optimizer step
             if (step + 1) % config.gradient_accumulation_steps == 0:
-                if config.use_amp:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
+                for optimizer in optimizers:
+                    optimizer.step()
+                    optimizer.zero_grad()
+                for scheduler in schedulers:
+                    scheduler.step()
 
-                    for optimizer in optimizers:
-                        optimizer.step()
-                        optimizer.zero_grad()
-                    for scheduler in schedulers:
-                        scheduler.step()
-                else:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
-                    for optimizer in optimizers:
-                        optimizer.step()
-                        optimizer.zero_grad()
-                    for scheduler in schedulers:
-                        scheduler.step()
-
-            # Target train loss check (every step for precision)
-            current_loss = ce_loss.item()
-            if target_train_loss is not None and current_loss <= target_train_loss:
-                print(f"\n🎯 Target train loss {target_train_loss} reached at step {step}!")
-                stopped_early = True
+            # Track current loss as a scalar only every 100 steps to avoid sync bottleneck
+            if step % 100 == 0 or step == 0:
+                current_loss_val = ce_loss.item()
+                if target_train_loss is not None and current_loss_val <= target_train_loss:
+                    print(f"\n🎯 Target train loss {target_train_loss} reached at step {step}!")
+                    stopped_early = True
                 
             # Logging
             if step % log_every == 0 or stopped_early:
                 with torch.no_grad():
+                    # Calculate accuracy using the shifted labels mask
                     predictions = logits.argmax(dim=-1)
-                    accuracy = (predictions == y).float().mean().item()
-                    perplexity = math.exp(min(current_loss, 20))
+                    mask = (shift_labels != -100)
+                    accuracy = (predictions[mask] == shift_labels[mask]).float().mean().item()
+                    
+                    # Use the scalar value we polled above
+                    perplexity = math.exp(min(current_loss_val if 'current_loss_val' in locals() else ce_loss.item(), 20))
                     current_lr = schedulers[0].get_last_lr()[0] if schedulers else optimizers[0].param_groups[0]['lr']
 
                 # Update progress bar
@@ -226,18 +226,19 @@ def train_model(
                 
                 pbar.set_postfix({
                     'step': f'{step}/{est_total_steps}',
-                    'loss': f'{current_loss:.4f}',
+                    'loss': f'{current_loss_val:.4f}',
                     'acc': f'{accuracy:.3f}',
                     'lr': f'{current_lr:.5f}'
                 })
                 # Console print for visibility
                 if step % (log_every * 10) == 0 or stopped_early:
-                    print(f" [Step {step}] Loss: {current_loss:.4f} | Acc: {accuracy:.3f} | LR: {current_lr:.6f}")
+                    print(f" [Step {step}] Loss: {current_loss_val:.4f} | Acc: {accuracy:.3f} | LR: {current_lr:.6f}")
             
             pbar.update(batch_tokens)
             tokens_seen += batch_tokens
 
             if stopped_early:
+                current_loss_val = ce_loss.item()
                 break
 
             # Evaluation
@@ -262,11 +263,17 @@ def train_model(
                 # Early stopping check
                 if early_stopper is not None:
                     if early_stopper(eval_metrics['val_loss'], step):
+                        current_loss_val = ce_loss.item()
                         stopped_early = True
                         break
 
             step += 1
         
+        # If we finished the inner loop but didn't stop early, 
+        # ensure we have the most recent loss from the very last batch
+        if not stopped_early and 'ce_loss' in locals():
+            current_loss_val = ce_loss.item()
+
         if stopped_early:
             break
 
@@ -275,6 +282,7 @@ def train_model(
     # Final evaluation (if not stopped early)
     if not stopped_early or tokens_seen >= config.train_tokens:
         final_eval = evaluate_model(model, val_loader, config)
+        final_eval['train_loss'] = current_loss_val
         elapsed_time = (time.time() - train_start_time) / 60
         current_lr = schedulers[0].get_last_lr()[0] if schedulers else optimizers[0].param_groups[0]['lr']
         
@@ -292,12 +300,14 @@ def train_model(
                 'val_loss': metrics_history['val_losses'][best_idx],
                 'val_accuracy': metrics_history['val_accuracies'][best_idx],
                 'val_perplexity': metrics_history['val_perplexities'][best_idx],
+                'train_loss': current_loss_val if 'current_loss_val' in locals() else 0.0,
             }
         else:
             final_eval = {
-                'val_loss': current_loss if 'current_loss' in locals() else 0.0,
+                'val_loss': current_loss_val if 'current_loss_val' in locals() else 0.0,
                 'val_accuracy': accuracy if 'accuracy' in locals() else 0.0,
                 'val_perplexity': perplexity if 'perplexity' in locals() else 0.0,
+                'train_loss': current_loss_val if 'current_loss_val' in locals() else 0.0,
             }
     
     # Synchronize CUDA to ensure all operations are complete before ending timer
@@ -351,7 +361,8 @@ def train_model(
         'metrics_history': metrics_history,
         'training_time': total_time_seconds,
         'steps': step,
-        'tokens_seen': tokens_seen
+        'tokens_seen': tokens_seen,
+        'train_loss': current_loss_val if 'current_loss_val' in locals() else 0.0,
     }
 
 
@@ -659,6 +670,7 @@ def train_minimal_llm(
     print(f"Training Time (⏱️ Speedrun):      {format_time(total_training_time)}")
     print(f"Total Tokens:                    {tokens_seen:,}")
     print("-" * 70)
+    print(f"Final Train Loss:                {final_eval.get('train_loss', 0.0):.4f}")
     print(f"Final Val Loss:                  {final_eval['val_loss']:.4f}")
     print(f"Final Val Accuracy:              {final_eval['val_accuracy']:.4f}")
     print("="*70 + "\n")

@@ -8,10 +8,22 @@ Usually we will do research together to be able to beat records, but you may als
 
 To qualify for the **Speedrun** (4.5 loss / 3.5 loss / 1B tokens) leaderboard, your run must follow these rules:
 
-1.  Surpass the record (training loss of **≤ 4.5**, training loss of **≤ 3.5**, fastest training time or lowest validation loss on **1B tokens**).
+1.  Surpass the record (training loss of **≤ 4.5**, training loss of **≤ 3.5**, or fastest training time on **8M tokens** / **1B tokens**).
 2.  Use the data mentioned in the [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md)
 3.  The official metric is **Active Training Time**. Setup and compilation overhead (`Setup & Compilation Time`) is excluded.
 4.  Keep the added code minimal, clean and readable.
+
+## ⚡ 8M Tokens Speedrun
+*Goal: Fastest Time to train 8M tokens*
+
+| # | Date | Train Loss | Val Loss | Time | Tokens Used | User | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | 2025-12-21 | 4.7066 | 4.8091 | 1m 51s 158ms | 8,011,776 | [Vuk Rosić](https://x.com/VukRosic99) | - |
+
+> **Record Repeatability / Noise**:
+  - Run 1: 1m 50s 899ms, 489 steps, Train Loss: 4.7066, Val Loss: 4.8091
+  - Run 2: 1m 51s 352ms, 489 steps, Train Loss: 4.7083, Val Loss: 4.8123
+  - Run 3: 1m 51s 390ms, 489 steps, Train Loss: 4.7064, Val Loss: 4.8112
 
 ### ⚠️ If you are unable to reproduce our results on RTX 4090, you may have different CPU, PCIe Bandwidth, or Thermal Throttling. We always recommend measuring your baseline first then comparing against your changes.
 
@@ -23,6 +35,7 @@ To qualify for the **Speedrun** (4.5 loss / 3.5 loss / 1B tokens) leaderboard, y
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **1** | 2025-12-18 | **1m 58s** | **5,472,256** | [Vuk Rosić](https://x.com/VukRosic99) | Optimized Config (LR 0.015, Warmup 0, Constant, GradAcc 1) + [Per-step check] |
 | **2** | 2025-12-20 | **1m 54s** | **8,110,080** | [Vuk Rosić](https://x.com/VukRosic99) | Hyperparam search: batch size doubled 4 to 8, n_layers 32 to 24 to fit into memory, muon lr 0.015 to 0.024 and adamw_lr from 0.001 to 0.006 |
+| **Extraordinary** | 2025-12-21 | **1m 51s** | **8,110,080** | [Vuk Rosić](https://x.com/VukRosic99) | We changed the way we measure, now it's max tokens |
 
 > **Record Repeatability / Noise**:
   - Run 1: 1m 54s, 494 steps
