@@ -62,7 +62,7 @@ class MinimalLLM(nn.Module):
         gate = self.config.smear_lambda * torch.sigmoid(
             self.tok_smear.forward(x[:, 1:, : self.tok_smear.in_features])
         )
-        x = torch.cat([x[:, :1], x[:, 1:] * gate * x[:, :-1]])
+        x = torch.cat([x[:, :1], x[:, 1:] + gate * x[:, :-1]], dim=1)
 
         # Pass through transformer blocks
         for block in self.transformer_blocks:
