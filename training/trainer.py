@@ -117,6 +117,8 @@ def train_model(
     if schedulers is None:
         schedulers = []
 
+    current_loss_val = 0.0
+
     # Training metrics tracking
     # Synchronize CUDA to ensure accurate timing (no queued operations)
     if torch.cuda.is_available():
@@ -170,29 +172,29 @@ def train_model(
             # Count tokens in this batch (approx: batch_size * seq_len)
             batch_tokens = x.numel()
 
-            # Forward pass
+            # Forward pass (optimized to avoid large contiguous copies of logits)
             if config.use_amp:
                 with autocast("cuda", dtype=torch.bfloat16):
                     logits = model(x)
-                    shift_logits = logits[:, :-1, :].contiguous()
-                    shift_labels = y[:, 1:].contiguous()
+                    # Shift labels instead of logits to save ~3GB VRAM
+                    # We set the last token to -100 so cross_entropy ignores it
+                    shift_labels = torch.full_like(y, -100)
+                    shift_labels[:, :-1] = y[:, 1:]
+                    
                     ce_loss = F.cross_entropy(
                         shift_logits.view(-1, config.vocab_size), shift_labels.view(-1)
                     )
-
-                    total_loss = ce_loss
-                    loss = total_loss / config.gradient_accumulation_steps
+                    loss = ce_loss / config.gradient_accumulation_steps
                 loss.backward()
             else:
                 logits = model(x)
-                shift_logits = logits[:, :-1, :].contiguous()
-                shift_labels = y[:, 1:].contiguous()
+                shift_labels = torch.full_like(y, -100)
+                shift_labels[:, :-1] = y[:, 1:]
+                
                 ce_loss = F.cross_entropy(
                     shift_logits.view(-1, config.vocab_size), shift_labels.view(-1)
                 )
-
-                total_loss = ce_loss
-                loss = total_loss / config.gradient_accumulation_steps
+                loss = ce_loss / config.gradient_accumulation_steps
                 loss.backward()
 
             # Optimizer step
@@ -224,6 +226,7 @@ def train_model(
             # Logging
             if step % log_every == 0 or stopped_early:
                 with torch.no_grad():
+                    # Calculate accuracy using the shifted labels mask
                     predictions = logits.argmax(dim=-1)
                     accuracy = (predictions == y).float().mean().item()
                     perplexity = math.exp(min(current_loss, 20))
@@ -259,6 +262,7 @@ def train_model(
             tokens_seen += batch_tokens
 
             if stopped_early:
+                current_loss_val = ce_loss.item()
                 break
 
             # Evaluation
@@ -304,6 +308,7 @@ def train_model(
     # Final evaluation (if not stopped early)
     if not stopped_early or tokens_seen >= config.train_tokens:
         final_eval = evaluate_model(model, val_loader, config)
+        final_eval['train_loss'] = current_loss_val
         elapsed_time = (time.time() - train_start_time) / 60
         current_lr = (
             schedulers[0].get_last_lr()[0]
@@ -578,7 +583,7 @@ def train_minimal_llm(
         model.load_state_dict(state_dict, strict=False)
 
     # ============================================
-    # 2. Save initial state BEFORE any forward pass
+    # 2. Save initial state BEFORE any forward pass (cloned to CPU)
     # ============================================
     initial_model_state = {k: v.clone() for k, v in model.state_dict().items()}
 
@@ -745,6 +750,7 @@ def train_minimal_llm(
     print(f"Training Time (⏱️ Speedrun):      {format_time(total_training_time)}")
     print(f"Total Tokens:                    {tokens_seen:,}")
     print("-" * 70)
+    print(f"Final Train Loss:                {final_eval.get('train_loss', 0.0):.4f}")
     print(f"Final Val Loss:                  {final_eval['val_loss']:.4f}")
     print(f"Final Val Accuracy:              {final_eval['val_accuracy']:.4f}")
     print("=" * 70 + "\n")
