@@ -33,6 +33,7 @@ Please read [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md) for detailed guide.
 | 3 | 2025-12-22 | 4.1952 | 4.2056 | 3m 29s 308ms | 20,004,864 | [ToheedAkhtar01](https://x.com/ToheedAkhtar01) [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/56) | Polar Muon - it replaces Muon’s Newton-Schulz iteration with a fixed-coefficient iterative scheme for faster, numerically stable orthogonalization. |
 | 4 | 2025-12-23 | 4.2049 | 4.2075 | 3m 28s 591ms | 20,004,864 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/67/) | Fused AdamW |
 | 5 | 2025-12-23 | 4.1701 | 4.1791 | 3m 19s 165ms | 20,004,864 | [bigwolfeman](https://github.com/bigwolfeman) | Cast model into bf16 - model = model.to(device, dtype=torch.bfloat16), Note: Optimizers might require higher precision for longer runs |
+| 6 | 2025-12-23 | 4.1755 | 4.1879 | 3m 18s 633ms | 20,004,864 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/73) | Integrated Parallel Transformer Block (GPT-J / PaLM style) where attention and FFN run conceptually in parallel. |
 
 > **Record Repeatability / Noise**:
 - Run 1: 3m 28s 591ms, Train Loss: 4.2049, Val Loss: 4.2075
@@ -47,6 +48,7 @@ Please read [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md) for detailed guide.
 | 2 | 2025-12-22 | 3.7370 | 3.7526 | 17m 27s 59ms | 100,007,936 | [Vuk Rosić](https://x.com/VukRosic99) | Squared ReLU instead of SwiGLU, one less linear layer in feedforward |
 | 3 | 2025-12-22 | 3.7439 | 3.7609 | 17m 8s 637ms | 100,007,936 | [ToheedAkhtar01](https://x.com/ToheedAkhtar01) [GitHub Polar](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/56); [GitHub AdamW](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/67/) | Fused AdamW; Polar Muon - it replaces Muon’s Newton-Schulz iteration with a fixed-coefficient iterative scheme for faster, numerically stable orthogonalization. |
 | 4 | 2025-12-23 | 3.6700 | 3.7094 | 16m 17s 221ms | 100,007,936 | [bigwolfeman](https://github.com/bigwolfeman) | Cast model into bf16 - model = model.to(device, dtype=torch.bfloat16), Note: Optimizers might require higher precision for longer runs |
+| 5 | 2025-12-23 | 3.6680 | 3.7101 | 16m 13s 792ms | 100,007,936 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/73) | Integrated Parallel Transformer Block (GPT-J / PaLM style) where attention and FFN run conceptually in parallel. |
 
 ## 🏅 The 1B Marathon (World Record)
 *Goal: Best Model @ 1B Tokens (Time < 4h)*
