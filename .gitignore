@@ -1,3 +1,8 @@
+111_disposable/
+docs/
+Ai-notes/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
