@@ -1,7 +1,5 @@
 # 5-Dollar LLM (Blueberry 88M)
 
-**Open Superintelligence Lab**: We are speedrunning LLM development to prove that state-of-the-art intelligence can be decentralized, fully open-source, and trained on consumer hardware. Our mission is to compete with the world's most powerful LLMs while keeping all research and engineering open for everyone.
-
 > Check out our speedrun [leaderboard](docs/LEADERBOARD.md)!
 
 ## 🗺️ Open Superintelligence Lab Roadmap
