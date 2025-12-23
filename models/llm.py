@@ -1,13 +1,19 @@
+"""
+Minimal LLM with Parallel Transformer Blocks
+
+Uses ParallelTransformerBlock (GPT-J/PaLM style) for faster training.
+"""
+
 import torch
 import torch.nn as nn
 import math
 from typing import Optional
 from configs.llm_config import BlueberryConfig
-from models.layers import TransformerBlock
+from models.parallel_block import ParallelTransformerBlock
 
 
 class MinimalLLM(nn.Module):
-    """Minimal dense LLM"""
+    """Minimal LLM with parallel attention+FFN blocks"""
 
     def __init__(self, config: BlueberryConfig):
         super().__init__()
@@ -17,10 +23,10 @@ class MinimalLLM(nn.Module):
         self.token_embedding = nn.Embedding(config.vocab_size, config.d_model)
         self.position_dropout = nn.Dropout(config.dropout)
 
-        # Transformer blocks
+        # Parallel transformer blocks
         self.transformer_blocks = nn.ModuleList(
             [
-                TransformerBlock(
+                ParallelTransformerBlock(
                     config.d_model,
                     config.n_heads,
                     config.d_ff,
@@ -28,7 +34,7 @@ class MinimalLLM(nn.Module):
                     config.dropout,
                     n_kv_heads=config.n_kv_heads,
                 )
-                for i in range(config.n_layers)
+                for _ in range(config.n_layers)
             ]
         )
 
@@ -55,7 +61,7 @@ class MinimalLLM(nn.Module):
         x = self.token_embedding(x) * math.sqrt(self.config.d_model)
         x = self.position_dropout(x)
 
-        # Pass through transformer blocks
+        # Pass through parallel transformer blocks
         for block in self.transformer_blocks:
             x = block(x)
 

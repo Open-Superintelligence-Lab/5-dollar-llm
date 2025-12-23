@@ -12,7 +12,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from configs.llm_config import BlueberryConfig
 from configs.dataset_config import DataConfig
-from training.trainer import train_minimal_llm
+from training.trainer import train_minimal_llm, train_model, setup_muon_optimizer
 from utils.helpers import set_seed, format_time
 from utils.logger import setup_logging
 
@@ -184,6 +184,8 @@ def main():
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
+    parser.add_argument("--model_type", type=str, default="minimal", choices=["minimal", "fast", "parallel"],
+                        help="Model architecture: 'minimal' (sequential) or 'fast'/'parallel' (parallel attn+ffn)")
 
     args = parser.parse_args()
 
@@ -297,13 +299,82 @@ def main():
     print(f"vocab size: {config.vocab_size}\n")
     logger.info(f"Model configuration: {vars(config)}")
 
-    train_minimal_llm(
-        config, 
-        train_loader, 
-        val_loader, 
-        output_dir=output_dir, 
-        load_weights_path=args.load_checkpoint,
-    )
+    # Train the model
+    if args.model_type in ["fast", "parallel"]:
+        print(f"\n🚀 Using FastLLM (parallel attention+ffn)")
+        from models.fast_llm import FastLLM
+        from training.trainer import warmup_compiled_kernels
+        
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        set_seed(42)
+        model = FastLLM(config).to(device)
+        
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"  📊 Total parameters: {total_params:,}")
+        
+        # Compile if requested
+        if config.compile_model:
+            print("🔥 Compiling FastLLM...")
+            initial_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            orig_model = model
+            model = torch.compile(model)
+            warmup_compiled_kernels(model, config, train_loader, device, num_steps=3)
+            orig_model.load_state_dict(initial_state)
+            del initial_state
+            torch.cuda.empty_cache()
+        
+        # Setup optimizer (always use Muon)
+        optimizers = setup_muon_optimizer(model, config)
+        
+        # Setup scheduler
+        tokens_per_opt = config.batch_size * config.max_seq_len * config.gradient_accumulation_steps
+        total_steps = config.train_tokens // tokens_per_opt
+        warmup_steps = max(1, int(total_steps * config.warmup_ratio))
+        
+        schedulers = []
+        for optimizer in optimizers:
+            def lr_lambda(step, warmup=warmup_steps, total=total_steps):
+                if step < warmup:
+                    return step / warmup
+                return 1.0
+            schedulers.append(torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda))
+        
+        set_seed(42)
+        results = train_model(
+            model=model,
+            config=config,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            optimizers=optimizers,
+            schedulers=schedulers,
+            output_dir=output_dir,
+            experiment_name=experiment_name,
+            target_train_loss=args.target_train_loss,
+            log_every=config.log_every,
+        )
+        
+        # Print speedrun results
+        final_eval = results['final_metrics']
+        print("\n" + "="*70)
+        print(" SPEEDRUN RESULTS")
+        print("="*70)
+        print(f"Training Time (⏱️ Speedrun):      {format_time(results['training_time'])}")
+        print(f"Total Tokens:                    {results['tokens_seen']:,}")
+        print("-" * 70)
+        print(f"Final Train Loss:                {final_eval.get('train_loss', 0.0):.4f}")
+        print(f"Final Val Loss:                  {final_eval['val_loss']:.4f}")
+        print(f"Final Val Accuracy:              {final_eval['val_accuracy']:.4f}")
+        print("="*70 + "\n")
+    else:
+        train_minimal_llm(
+            config, 
+            train_loader, 
+            val_loader, 
+            output_dir=output_dir, 
+            experiment_name=experiment_name,
+            load_weights_path=args.load_checkpoint,
+            target_train_loss=args.target_train_loss,
+        )
 
 
 if __name__ == "__main__":
