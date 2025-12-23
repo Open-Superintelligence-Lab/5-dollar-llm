@@ -14,6 +14,7 @@ Please read [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md) for detailed guide.
 | 3 | 2025-12-22 | 4.7286 | 4.8363 | 1m 28s 664ms | 8,011,776 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/56) [ToheedAkhtar01](https://x.com/ToheedAkhtar01) | Polar Muon - it replaces Muon’s Newton-Schulz iteration with a fixed-coefficient iterative scheme for faster, numerically stable orthogonalization. |
 | 4 | 2025-12-23 | 4.7333 | 4.8366 | 1m 27s 856ms | 8,011,776 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/67/) | Fused AdamW |
 | 5 | 2025-12-23 | 4.7409 | 4.8403 | 1m 26s 178ms | 8,011,776 | [bigwolfeman](https://github.com/bigwolfeman) | Cast model into bf16 - model = model.to(device, dtype=torch.bfloat16), Note: Optimizers might require higher precision for longer runs |
+| 6 | 2025-12-23 | 4.7307 | 4.8305 | 1m 25s 225ms | 8,011,776 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/73) | Integrated Parallel Transformer Block (GPT-J / PaLM style) where attention and FFN run conceptually in parallel - https://arxiv.org/pdf/2305.19370. |
 
 > **Record Repeatability / Noise**:
 - Run 1: 1m 27s 856ms, Train Loss: 4.7333, Val Loss: 4.8366
