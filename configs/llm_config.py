@@ -20,8 +20,8 @@ class BlueberryConfig:
     
     # Base Training Defaults
     compile_model: bool = True
-    batch_size: int = 4
-    gradient_accumulation_steps: int = 2
+    batch_size: int = 8
+    gradient_accumulation_steps: int = 1
     train_tokens: int = 8000000
     
     # Learning Rate (Aggressive for pre-training)
