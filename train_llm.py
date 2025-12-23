@@ -184,8 +184,6 @@ def main():
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
-    parser.add_argument("--model_type", type=str, default="minimal", choices=["minimal", "fast", "parallel"],
-                        help="Model architecture: 'minimal' (sequential) or 'fast'/'parallel' (parallel attn+ffn)")
 
     args = parser.parse_args()
 
