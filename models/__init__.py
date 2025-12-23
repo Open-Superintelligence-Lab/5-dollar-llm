@@ -1,4 +1,3 @@
-from .components import SwiGLUFeedForward
 from .layers import (
     Rotary,
     MultiHeadAttention,
@@ -7,9 +6,9 @@ from .layers import (
 from .llm import MinimalLLM
 
 __all__ = [
-    "SwiGLUFeedForward",
     "Rotary",
     "MultiHeadAttention",
     "TransformerBlock",
     "MinimalLLM",
 ]
+

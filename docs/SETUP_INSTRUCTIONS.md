@@ -87,6 +87,8 @@ Our community competes to reach specific training loss milestones in the shortes
 - **Configs:** Modify `configs/llm_config.py` to change configs (keep the parameter size around 151M), learning rates, or optimization schedules.
 - **Model:** Edit `models/llm.py` to experiment with new attention mechanisms or layer types.
 - **Logs:** Check the `logs/` directory for detailed training metrics.
+- **Baseline Measurement:** Before submitting any changes, **you must measure the baseline** on your setup and compare it with your improvements.
+- **GPU Memory:** If the model doesn't fit on your GPU, you can reduce the model size (e.g., `batch_size` or `n_layer`) for faster local iteration.
 - **Leaderboard:** See `docs/LEADERBOARD.md` for current world records and submission instructions.
 
 
