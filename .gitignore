@@ -232,6 +232,9 @@ logs_debug/
 # Keep all JSON files in baselines folder
 !baselines/*.json
 !baselines/**/*.json
+# Keep all JSON files in plots folder (benchmark results)
+!plots/*.json
+!plots/**/*.json
 !docs/timecapsule/**/*
 
 # gemini-cli settings

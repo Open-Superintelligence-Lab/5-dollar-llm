@@ -223,6 +223,32 @@ def main():
     if args.log_every is not None:
         config.log_every = args.log_every
     
+    # Define custom milestones for validation curves and autosetup logging
+    # For 8M benchmark (approx 488 steps)
+    if config.train_tokens <= 8000000:
+        config.eval_milestones = (0, 50, 100, 150, 200, 300, 400)
+        config.log_every = 50
+        config.eval_every = None  # Only use milestones
+    # For 20M benchmark (approx 1220 steps)
+    elif config.train_tokens <= 20000000:
+        config.eval_milestones = (0, 100, 250, 500, 750, 1000)
+        config.log_every = 100
+        config.eval_every = None
+    # For 100M benchmark (approx 6100 steps)
+    elif config.train_tokens <= 100000000:
+        config.eval_milestones = (0, 500, 1000, 2000, 3000, 4000, 5000)
+        config.log_every = 250
+        config.eval_every = None
+    # For 1B benchmark (approx 61000 steps)
+    else:
+        config.eval_milestones = (0, 1000, 5000, 10000, 20000, 30000, 40000, 50000)
+        config.log_every = 1000
+        config.eval_every = None
+    
+    # Allow command line override ONLY if explicitly provided (argparse default check)
+    if args.log_every != 100: # 100 is the default in parser
+        config.log_every = args.log_every
+    
     use_warmup = (args.warmup.lower() == "true")
 
     

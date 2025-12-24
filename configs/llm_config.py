@@ -31,8 +31,9 @@ class BlueberryConfig:
     schedule_type: str = "constant"
 
     # Evaluation
-    eval_every: int = 2000
+    eval_every: Optional[int] = None
     eval_steps: int = 100
+    eval_milestones: Optional[Tuple[int, ...]] = None
     
     # Regularization
     weight_decay: float = 0.2
