@@ -184,12 +184,6 @@ def main():
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
-    
-    # Drop-Muon arguments
-    parser.add_argument("--use-drop-muon", action="store_true", help="Use Drop-Muon optimizer with layer dropping")
-    parser.add_argument("--drop-strategy", type=str, choices=['uniform', 'epoch_shift', 'adaptive', 'none'], default='uniform',
-                        help="Drop-Muon sampling strategy: uniform (equal probability), epoch_shift (progressive), adaptive (gradient-based), or none (no dropping)")
-    parser.add_argument("--drop-alpha", type=float, default=0.5, help="Sharpness parameter for epoch-shift/adaptive distribution")
 
     args = parser.parse_args()
 
@@ -228,12 +222,6 @@ def main():
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
     if args.log_every is not None:
         config.log_every = args.log_every
-    
-    # Drop-Muon config overrides
-    if args.use_drop_muon:
-        config.use_drop_muon = True
-        config.drop_strategy = args.drop_strategy
-        config.drop_alpha = args.drop_alpha
     
     use_warmup = (args.warmup.lower() == "true")
 

@@ -13,7 +13,6 @@ from typing import List, Optional, Callable, Dict, Any
 from configs.llm_config import BlueberryConfig
 from models.llm import MinimalLLM
 from optimizers.muon import Muon
-from optimizers.drop_muon import DropMuon
 from training.evaluation import evaluate_model
 from utils.helpers import set_seed, format_time
 
@@ -45,23 +44,32 @@ class EarlyStopping:
 
 
 def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
-    """Setup Muon optimizer with hybrid approach"""
-    muon_params = []
-    adamw_params = []
-
-    for name, param in model.named_parameters():
-        if (param.ndim == 2 and 
-            'token_embedding' not in name and 
-            'norm' not in name and 
-            param.requires_grad):
-            muon_params.append(param)
-        else:
-            adamw_params.append(param)
-
-    print(f"  Muon parameters: {sum(p.numel() for p in muon_params):,}")
+    """Setup Drop-Muon optimizer with layer-indexed param groups for epoch-shift dropping"""
+    layer_params = model.get_layer_param_mapping()
+    
+    # Create param groups with layer indices
+    muon_param_groups = []
+    total_muon_params = 0
+    muon_param_ids = set()
+    
+    for layer_idx, params in layer_params.items():
+        for param in params:
+            muon_param_groups.append({'params': [param], 'layer_idx': layer_idx})
+            total_muon_params += param.numel()
+            muon_param_ids.add(id(param))
+    
+    # Remaining params go to AdamW
+    adamw_params = [p for p in model.parameters() if id(p) not in muon_param_ids]
+    
+    print(f"  Muon parameters: {total_muon_params:,}")
     print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
 
-    muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
+    muon_optimizer = Muon(
+        muon_param_groups, 
+        lr=config.muon_lr, 
+        momentum=config.muon_momentum,
+        num_layers=config.n_layers,
+    )
     adamw_optimizer = torch.optim.AdamW(
         adamw_params,
         lr=config.adamw_lr,
@@ -70,63 +78,6 @@ def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
     )
 
     return [muon_optimizer, adamw_optimizer]
-
-
-def setup_drop_muon_optimizer(model: nn.Module, config: BlueberryConfig):
-    """
-    Setup Drop-Muon optimizer with hybrid approach.
-    
-    Drop-Muon needs to know which layer each parameter belongs to,
-    so we create param groups with 'layer_idx' metadata.
-    """
-    # Get layer-wise parameters from model
-    layer_params = model.get_layer_param_mapping()
-    
-    # Create param groups with layer indices for Drop-Muon
-    drop_muon_param_groups = []
-    total_drop_muon_params = 0
-    
-    for layer_idx, params in layer_params.items():
-        for param in params:
-            drop_muon_param_groups.append({
-                'params': [param],
-                'layer_idx': layer_idx,
-            })
-            total_drop_muon_params += param.numel()
-    
-    # Collect non-Muon parameters for AdamW
-    adamw_params = []
-    muon_param_ids = set()
-    for params in layer_params.values():
-        for p in params:
-            muon_param_ids.add(id(p))
-    
-    for name, param in model.named_parameters():
-        if id(param) not in muon_param_ids:
-            adamw_params.append(param)
-    
-    print(f"  Drop-Muon parameters: {total_drop_muon_params:,}")
-    print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
-    print(f"  Drop strategy: {config.drop_strategy}")
-    
-    # Create optimizers
-    drop_muon_optimizer = DropMuon(
-        drop_muon_param_groups,
-        lr=config.muon_lr,
-        momentum=config.muon_momentum,
-        drop_strategy=config.drop_strategy,
-        num_layers=config.n_layers,
-        alpha=config.drop_alpha,
-    )
-    
-    adamw_optimizer = torch.optim.AdamW(
-        adamw_params,
-        lr=config.adamw_lr,
-        weight_decay=config.weight_decay,
-        fused=torch.cuda.is_available()
-    )
-    
-    return [drop_muon_optimizer, adamw_optimizer]
 
 
 def train_model(
@@ -250,15 +201,14 @@ def train_model(
             if (step + 1) % config.gradient_accumulation_steps == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
                 
-                # Calculate training progress for Drop-Muon epoch-shift sampling
+                # Training progress for Drop-Muon epoch-shift layer dropping
                 tokens_per_opt_step = config.batch_size * config.max_seq_len * config.gradient_accumulation_steps
                 total_opt_steps = config.train_tokens // tokens_per_opt_step
-                training_progress = min(1.0, step / max(1, total_opt_steps))
+                progress = min(1.0, step / max(1, total_opt_steps))
                 
                 for optimizer in optimizers:
-                    if isinstance(optimizer, DropMuon):
-                        # Drop-Muon needs training progress for epoch-shift distribution
-                        optimizer.step(progress=training_progress)
+                    if isinstance(optimizer, Muon):
+                        optimizer.step(progress=progress)
                     else:
                         optimizer.step()
                     optimizer.zero_grad()
@@ -557,11 +507,7 @@ def train_minimal_llm(
     # ============================================
     # 6. Create FRESH optimizers (no accumulated state)
     # ============================================
-    if config.use_drop_muon:
-        print("🎲 Using Drop-Muon optimizer with layer dropping")
-        optimizers = setup_drop_muon_optimizer(model, config)
-    else:
-        optimizers = setup_muon_optimizer(model, config)
+    optimizers = setup_muon_optimizer(model, config)
 
     # ============================================
     # 7. Create FRESH schedulers

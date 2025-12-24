@@ -40,11 +40,6 @@ class BlueberryConfig:
     grad_clip: float = 1.0
     use_amp: bool = True
     
-    # Drop-Muon settings
-    use_drop_muon: bool = False
-    drop_strategy: str = 'uniform'  # 'uniform', 'epoch_shift', or 'none'
-    drop_alpha: float = 0.5  # Sharpness for epoch-shift distribution
-    
     # Logging
     log_milestones: Tuple[int, ...] = (100, 500, 1000)
 
