@@ -41,7 +41,7 @@ def evaluate_model(model: nn.Module, val_loader: DataLoader, config: BlueberryCo
             if attention_mask is not None:
                 attention_mask = attention_mask.to(device)
 
-            with autocast('cuda', dtype=torch.float16, enabled=config.use_amp):
+            with autocast('cuda', dtype=torch.bfloat16, enabled=config.use_amp):
                 # Dense model evaluation
                 logits = model(x)
                 # Shift for causal LM: predict next token

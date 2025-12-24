@@ -173,7 +173,6 @@ def main():
     parser.add_argument("--muon_lr", type=float, help="Override Muon learning rate")
     parser.add_argument("--adamw_lr", type=float, help="Override AdamW learning rate")
     parser.add_argument("--train_tokens", type=int, default=8000000, help="Override train_tokens")
-    parser.add_argument("--experiment_name", type=str, default="speedrun_4.5", help="Name of the experiment")
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
     parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
@@ -183,7 +182,6 @@ def main():
     parser.add_argument("--save_every", type=int, help="Override save_every steps")
     parser.add_argument("--batch_size", type=int, help="Override batch_size")
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
-    parser.add_argument("--target_train_loss", type=float, default=0.0, help="Stop training when training loss reaches this value")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
 
@@ -228,8 +226,7 @@ def main():
     use_warmup = (args.warmup.lower() == "true")
 
     
-    experiment_name = args.experiment_name
-    output_dir = os.path.join(args.output_dir, experiment_name)
+    output_dir = args.output_dir
 
     # Calculate required documents dynamically
     # Assume avg 1000 tokens per doc (conservative estimate)
@@ -300,15 +297,12 @@ def main():
     print(f"vocab size: {config.vocab_size}\n")
     logger.info(f"Model configuration: {vars(config)}")
 
-    # Train the model
     train_minimal_llm(
         config, 
         train_loader, 
         val_loader, 
         output_dir=output_dir, 
-        experiment_name=experiment_name,
         load_weights_path=args.load_checkpoint,
-        target_train_loss=args.target_train_loss,
     )
 
 

@@ -15,15 +15,15 @@ import statistics
 from utils.helpers import format_time
 
 # Configuration
-NUM_RUNS = 3
-TARGET_TOKENS = 8000000
+NUM_RUNS = 1
+TARGET_TOKENS = 100000000
 
 def run_training(run_id):
     print(f"\n🚀 Starting Run {run_id}...")
-    experiment_name = f"repro_run_{run_id}"
+    output_dir = f"checkpoints/repro_run_{run_id}"
     cmd = [
         "python", "train_llm.py",
-        "--experiment_name", experiment_name,
+        "--output_dir", output_dir,
         "--compile", "true",
         "--dataset_path", "processed_data/speedrun_40M",
         "--train_tokens", str(TARGET_TOKENS)
@@ -39,7 +39,7 @@ def run_training(run_id):
     process.wait()
     
     # Load metrics from json
-    metrics_path = f"checkpoints/{experiment_name}/metrics.json"
+    metrics_path = f"{output_dir}/metrics.json"
     if os.path.exists(metrics_path):
         with open(metrics_path, "r") as f:
             data = json.load(f)

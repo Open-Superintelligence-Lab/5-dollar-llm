@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import math
 import time
 import json
-import matplotlib.pyplot as plt
+import json
 from pathlib import Path
 from torch.utils.data import DataLoader
 from torch.amp import autocast
@@ -64,7 +64,8 @@ def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
     adamw_optimizer = torch.optim.AdamW(
         adamw_params,
         lr=config.adamw_lr,
-        weight_decay=config.weight_decay
+        weight_decay=config.weight_decay,
+        fused=torch.cuda.is_available()
     )
 
     return [muon_optimizer, adamw_optimizer]
@@ -79,10 +80,7 @@ def train_model(
     schedulers: Optional[List] = None,
     early_stopper: Optional[EarlyStopping] = None,
     output_dir: Optional[str] = None,
-    experiment_name: Optional[str] = None,
-    plot_fn: Optional[Callable] = None,
     extra_config: Optional[Dict[str, Any]] = None,
-    target_train_loss: Optional[float] = None,
     log_every: int = 100,
 ) -> Any:
     """
@@ -97,15 +95,13 @@ def train_model(
         schedulers: Optional list of learning rate schedulers
         early_stopper: Optional early stopping handler
         output_dir: Optional directory to save outputs
-        experiment_name: Optional experiment name for logging
-        plot_fn: Optional custom plotting function(metrics_history, output_path)
         extra_config: Optional dict of extra config to save with metrics
     
     Returns:
         model, final_metrics, metrics_history
     """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = model.to(device)
+    model = model.to(device, dtype=torch.bfloat16)
     
     if schedulers is None:
         schedulers = []
@@ -130,7 +126,7 @@ def train_model(
     model.train()
     step = 0
     tokens_seen = 0
-    desc = f"Training {experiment_name}" if experiment_name else "Training"
+    desc = "Training"
     pbar = tqdm(total=config.train_tokens, desc=desc, unit="tokens")
     
     stopped_early = False
@@ -204,9 +200,6 @@ def train_model(
             # Track current loss as a scalar only every 100 steps to avoid sync bottleneck
             if step % 100 == 0 or step == 0:
                 current_loss_val = ce_loss.item()
-                if target_train_loss is not None and current_loss_val <= target_train_loss:
-                    print(f"\n🎯 Target train loss {target_train_loss} reached at step {step}!")
-                    stopped_early = True
                 
             # Logging
             if step % log_every == 0 or stopped_early:
@@ -339,11 +332,6 @@ def train_model(
             json.dump(metrics_data, f, indent=2)
         print(f"   📁 Metrics saved to {metrics_file}")
         
-        # Plot metrics using custom function or default
-        if plot_fn:
-            plot_fn(metrics_history, output_path)
-        else:
-            plot_training_metrics(metrics_history, output_path)
         
         # Save model checkpoint
         checkpoint_path = output_path / "model.pt"
@@ -366,61 +354,6 @@ def train_model(
     }
 
 
-def plot_training_metrics(metrics_history: Dict, output_path: Path):
-    """Default plotting function for training metrics"""
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle('Training Metrics', fontsize=14, fontweight='bold')
-    
-    # Plot 1: Val Loss vs Time
-    ax = axes[0, 0]
-    ax.plot(metrics_history['elapsed_times'], metrics_history['val_losses'], 'b-o', linewidth=2, markersize=4)
-    ax.set_xlabel('Time (minutes)')
-    ax.set_ylabel('Validation Loss')
-    ax.set_title('Validation Loss vs Time')
-    ax.grid(True, alpha=0.3)
-    
-    # Highlight best point
-    if metrics_history['val_losses']:
-        best_idx = metrics_history['val_losses'].index(min(metrics_history['val_losses']))
-        ax.plot(metrics_history['elapsed_times'][best_idx], 
-                metrics_history['val_losses'][best_idx], 
-                'r*', markersize=15, label=f'Best: {metrics_history["val_losses"][best_idx]:.4f}')
-        ax.legend()
-    
-    # Plot 2: Val Loss vs Steps
-    ax = axes[0, 1]
-    ax.plot(metrics_history['steps'], metrics_history['val_losses'], 'g-o', linewidth=2, markersize=4)
-    ax.set_xlabel('Training Steps')
-    ax.set_ylabel('Validation Loss')
-    ax.set_title('Validation Loss vs Steps')
-    ax.grid(True, alpha=0.3)
-    if metrics_history['val_losses']:
-        best_idx = metrics_history['val_losses'].index(min(metrics_history['val_losses']))
-        ax.plot(metrics_history['steps'][best_idx], 
-                metrics_history['val_losses'][best_idx], 
-                'r*', markersize=15)
-    
-    # Plot 3: Val Accuracy vs Steps
-    ax = axes[1, 0]
-    ax.plot(metrics_history['steps'], metrics_history['val_accuracies'], 'purple', linewidth=2, marker='o', markersize=4)
-    ax.set_xlabel('Training Steps')
-    ax.set_ylabel('Validation Accuracy')
-    ax.set_title('Validation Accuracy vs Steps')
-    ax.grid(True, alpha=0.3)
-    
-    # Plot 4: Learning Rate vs Steps
-    ax = axes[1, 1]
-    ax.plot(metrics_history['steps'], metrics_history['learning_rates'], 'orange', linewidth=2)
-    ax.set_xlabel('Training Steps')
-    ax.set_ylabel('Learning Rate')
-    ax.set_title('Learning Rate Schedule')
-    ax.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plot_path = output_path / "metrics_plot.png"
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"   📊 Plots saved to {plot_path}")
 
 def warmup_compiled_kernels(
     model: nn.Module,
@@ -490,9 +423,7 @@ def train_minimal_llm(
     train_loader: DataLoader,
     val_loader: DataLoader,
     output_dir: Optional[str] = None,
-    experiment_name: Optional[str] = None,
     load_weights_path: Optional[str] = None,
-    target_train_loss: Optional[float] = None,
 ):
     print(f"\n🚀 Training dense model")
     setup_start = time.time()
@@ -513,9 +444,9 @@ def train_minimal_llm(
         model.load_state_dict(state_dict, strict=False)
 
     # ============================================
-    # 2. Save initial state BEFORE any forward pass
+    # 2. Save initial state BEFORE any forward pass (cloned to CPU)
     # ============================================
-    initial_model_state = {k: v.clone() for k, v in model.state_dict().items()}
+    initial_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
     
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  📊 Total parameters: {total_params:,}")
@@ -616,10 +547,7 @@ def train_minimal_llm(
         schedulers=schedulers,
         early_stopper=None,
         output_dir=None,
-        experiment_name=experiment_name,
-        plot_fn=None,
         extra_config=None,
-        target_train_loss=target_train_loss,
         log_every=getattr(config, 'log_every', 100),
     )
     
@@ -659,8 +587,6 @@ def train_minimal_llm(
             'metrics': final_eval,
         }, checkpoint_path)
         
-        # Plot
-        plot_training_metrics(metrics_history, output_path)
     
     # Final Output
     print("\n" + "="*70)
