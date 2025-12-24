@@ -172,7 +172,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train MoE Model")
     parser.add_argument("--muon_lr", type=float, help="Override Muon learning rate")
     parser.add_argument("--adamw_lr", type=float, help="Override AdamW learning rate")
-    parser.add_argument("--train_tokens", type=int, default=100000000, help="Override train_tokens")
+    parser.add_argument("--train_tokens", type=int, default=20000000, help="Override train_tokens")
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
     parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
