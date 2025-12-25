@@ -43,8 +43,9 @@ class MultiHeadAttention(nn.Module):
         self.k_norm = nn.RMSNorm(self.d_k)
         self.rotary = Rotary(self.d_k, max_seq_len)
         self.dropout = dropout
+        self.lambd = nn.Parameter(torch.tensor(0.5))
 
-    def forward(self, x):
+    def forward(self, x, v1=None):
         batch_size, seq_len = x.size(0), x.size(1)
 
         # Calculate queries, keys, and values
@@ -57,6 +58,9 @@ class MultiHeadAttention(nn.Module):
         V = self.v_proj(x).reshape(
             batch_size, seq_len, self.n_kv_heads, self.d_k
         )  # [B, T, KV_H, D]
+        if v1 is None:
+            v1 = V
+        V = (1 - self.lambd) * V + self.lambd * v1
 
         # Apply RoPE
         Q = self.rotary(self.q_norm(Q))
@@ -76,7 +80,7 @@ class MultiHeadAttention(nn.Module):
             batch_size, seq_len, self.d_model
         )
         # attn_output = attn_output.transpose(1, 2).reshape(B, T, self.d_model)
-        return self.w_o(attn_output)
+        return self.w_o(attn_output), v1
 
 
 class TransformerBlock(nn.Module):
@@ -93,7 +97,9 @@ class TransformerBlock(nn.Module):
     ):
         super().__init__()
 
-        self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
+        self.attention = MultiHeadAttention(
+            d_model, n_heads, max_seq_len, dropout, n_kv_heads
+        )
         self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
 
         # Normalization layers
@@ -101,12 +107,15 @@ class TransformerBlock(nn.Module):
         self.norm2 = nn.RMSNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+        self.lambds = nn.Parameter(torch.tensor([1.0, 0.0]))
+
+    def forward(self, x, x0, v1=None):
+        x = x * self.lambds[0] + x0 * self.lambds[1]
         # Self-attention
-        attn_out = self.attention(self.norm1(x))
-        x = x + self.dropout(attn_out)
+        x1, v1 = self.attention(self.norm1(x), v1)
+        x = x + self.dropout(x1)
 
         # Feed-forward
         ff_out = self.feed_forward(self.norm2(x))
         x = x + self.dropout(ff_out)
-        return x
+        return x, v1

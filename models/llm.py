@@ -31,6 +31,9 @@ class MinimalLLM(nn.Module):
                 for i in range(config.n_layers)
             ]
         )
+        self.encoded_layers = config.n_layers // 2
+        self.decoded_layers = config.n_layers - self.encoded_layers
+        self.skip_weights = nn.Parameter(torch.ones(self.decoded_layers))
 
         # Output layers
         self.norm = nn.RMSNorm(config.d_model)
@@ -54,10 +57,21 @@ class MinimalLLM(nn.Module):
         # Token embeddings
         x = self.token_embedding(x) * math.sqrt(self.config.d_model)
         x = self.position_dropout(x)
+        x0 = x
+        v1 = None
+        skip_connections = []
 
         # Pass through transformer blocks
-        for block in self.transformer_blocks:
-            x = block(x)
+        for i in range(self.encoded_layers):
+            x, v1 = self.transformer_blocks[i](x, x0, v1)
+            skip_connections.append(x)
+
+        for i in range(self.decoded_layers):
+            skip_connection = skip_connections.pop()
+            weighted_skip_connection = self.skip_weights[i] * skip_connection
+            x, v1 = self.transformer_blocks[self.encoded_layers + i](
+                x + weighted_skip_connection, x0, v1
+            )
 
         # Output projection
         x = self.norm(x)
