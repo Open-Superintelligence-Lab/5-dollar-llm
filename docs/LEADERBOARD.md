@@ -14,6 +14,7 @@ Please read [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md) for detailed guide.
 | 3 | 2025-12-22 | 4.7286 | 4.8363 | 1m 28s 664ms | 8,011,776 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/56) [ToheedAkhtar01](https://x.com/ToheedAkhtar01) | Polar Muon - it replaces Muon’s Newton-Schulz iteration with a fixed-coefficient iterative scheme for faster, numerically stable orthogonalization. |
 | 4 | 2025-12-23 | 4.7333 | 4.8366 | 1m 27s 856ms | 8,011,776 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/67/) | Fused AdamW |
 | 5 | 2025-12-23 | 4.7409 | 4.8403 | 1m 26s 178ms | 8,011,776 | [bigwolfeman](https://github.com/bigwolfeman) | Cast model into bf16 - model = model.to(device, dtype=torch.bfloat16), Note: Optimizers might require higher precision for longer runs |
+| 5 (new eval) | 2025-12-24 | 4.7408 | 4.8387 | 1m 59s 44ms | 8,011,776 | [bigwolfeman](https://github.com/bigwolfeman) | Included evaluations during training to plot loss curve. Training setup unchanged from #5. |
 
 > **Record Repeatability / Noise**:
 - Run 1: 1m 27s 856ms, Train Loss: 4.7333, Val Loss: 4.8366
@@ -32,6 +33,7 @@ Please read [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md) for detailed guide.
 | 3 | 2025-12-22 | 4.1952 | 4.2056 | 3m 29s 308ms | 20,004,864 | [ToheedAkhtar01](https://x.com/ToheedAkhtar01) [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/56) | Polar Muon - it replaces Muon’s Newton-Schulz iteration with a fixed-coefficient iterative scheme for faster, numerically stable orthogonalization. |
 | 4 | 2025-12-23 | 4.2049 | 4.2075 | 3m 28s 591ms | 20,004,864 | [GitHub](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/67/) | Fused AdamW |
 | 5 | 2025-12-23 | 4.1701 | 4.1791 | 3m 19s 165ms | 20,004,864 | [bigwolfeman](https://github.com/bigwolfeman) | Cast model into bf16 - model = model.to(device, dtype=torch.bfloat16), Note: Optimizers might require higher precision for longer runs |
+| 5 (new eval) | 2025-12-24 | 4.1631 | 4.1756 | 3m 50s 276ms | 20,004,864 | [bigwolfeman](https://github.com/bigwolfeman) | Included evaluations during training to plot loss curve. Training setup unchanged from #5. |
 
 > **Record Repeatability / Noise**:
 - Run 1: 3m 28s 591ms, Train Loss: 4.2049, Val Loss: 4.2075
@@ -46,6 +48,7 @@ Please read [SETUP_INTRUCTIONS](docs/SETUP_INSTRUCTIONS.md) for detailed guide.
 | 2 | 2025-12-22 | 3.7370 | 3.7526 | 17m 27s 59ms | 100,007,936 | [Vuk Rosić](https://x.com/VukRosic99) | Squared ReLU instead of SwiGLU, one less linear layer in feedforward |
 | 3 | 2025-12-22 | 3.7439 | 3.7609 | 17m 8s 637ms | 100,007,936 | [ToheedAkhtar01](https://x.com/ToheedAkhtar01) [GitHub Polar](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/56); [GitHub AdamW](https://github.com/Open-Superintelligence-Lab/5-dollar-llm/pull/67/) | Fused AdamW; Polar Muon - it replaces Muon’s Newton-Schulz iteration with a fixed-coefficient iterative scheme for faster, numerically stable orthogonalization. |
 | 4 | 2025-12-23 | 3.6700 | 3.7094 | 16m 17s 221ms | 100,007,936 | [bigwolfeman](https://github.com/bigwolfeman) | Cast model into bf16 - model = model.to(device, dtype=torch.bfloat16), Note: Optimizers might require higher precision for longer runs |
+| 4 (new eval) | 2025-12-24 | 3.6568 | 3.7108 | 16m 44s 139ms | 100,007,936 | [bigwolfeman](https://github.com/bigwolfeman) | Included evaluations during training to plot loss curve. Training setup unchanged from #4. |
 
 ## 🏅 The 1B Marathon (World Record GPT-1)
 *Goal: Best Model @ 1B Tokens (GPT-1)*

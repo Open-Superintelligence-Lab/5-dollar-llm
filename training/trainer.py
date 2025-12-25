@@ -235,7 +235,13 @@ def train_model(
                 break
 
             # Evaluation
-            if step % config.eval_every == 0 and step > 0:
+            is_milestone = False
+            if config.eval_milestones and step in config.eval_milestones:
+                is_milestone = True
+            elif config.eval_every is not None and step % config.eval_every == 0 and step > 0:
+                is_milestone = True
+
+            if is_milestone:
                 eval_metrics = evaluate_model(model, val_loader, config)
                 elapsed_time = (time.time() - train_start_time) / 60
                 current_lr = schedulers[0].get_last_lr()[0] if schedulers else optimizers[0].param_groups[0]['lr']
@@ -561,22 +567,52 @@ def train_minimal_llm(
     # ============================================
     # 10. Unified Saving & Reporting
     # ============================================
+    # Save results to plots/ directory with timestamped names
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    plot_dir = Path("plots")
+    plot_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filenames
+    base_filename = f"{config.train_tokens}_{timestamp}"
+    metrics_file = plot_dir / f"metrics_{base_filename}.json"
+    plot_file = plot_dir / f"val_loss_{base_filename}.png"
+    
+    # Save comprehensive metrics to plots/
+    metrics_data = {
+        'final_metrics': final_eval,
+        'setup_time_seconds': setup_time,
+        'active_training_time_seconds': total_training_time,
+        'total_wall_time_seconds': total_wall_time,
+        'total_time_minutes': total_wall_time / 60,
+        'actual_steps': step,
+        'tokens_seen': tokens_seen,
+        'train_tokens': config.train_tokens,
+        'history': metrics_history,
+    }
+    with open(metrics_file, 'w') as f:
+        json.dump(metrics_data, f, indent=2)
+    print(f"   📊 Metrics saved to {metrics_file}")
+        
+    # Generate and save validation loss plot
+    try:
+        from utils.plot_loss import plot_loss
+        plot_loss(
+            str(metrics_file), 
+            str(plot_file), 
+            title=f"Validation Loss - {config.train_tokens:,} Tokens"
+        )
+        print(f"   📈 Plot saved to {plot_file}")
+    except Exception as e:
+        print(f"   ⚠️ Failed to generate plot: {e}")
+    
+    # Also save to output_dir if specified (for backward compatibility)
     if output_dir:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         
-        # Save comprehensive metrics
-        metrics_file = output_path / "metrics.json"
-        metrics_data = {
-            'final_metrics': final_eval,
-            'setup_time_seconds': setup_time,
-            'active_training_time_seconds': total_training_time,
-            'total_wall_time_seconds': total_wall_time,
-            'total_time_minutes': total_wall_time / 60,
-            'actual_steps': step,
-            'history': metrics_history,
-        }
-        with open(metrics_file, 'w') as f:
+        # Save metrics copy
+        checkpoint_metrics = output_path / "metrics.json"
+        with open(checkpoint_metrics, 'w') as f:
             json.dump(metrics_data, f, indent=2)
             
         # Save model

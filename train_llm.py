@@ -172,7 +172,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train MoE Model")
     parser.add_argument("--muon_lr", type=float, help="Override Muon learning rate")
     parser.add_argument("--adamw_lr", type=float, help="Override AdamW learning rate")
-    parser.add_argument("--train_tokens", type=int, default=8000000, help="Override train_tokens")
+    parser.add_argument("--train_tokens", type=int, default=100000000, help="Override train_tokens")
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
     parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
@@ -221,6 +221,32 @@ def main():
     if args.gradient_accumulation_steps is not None:
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
     if args.log_every is not None:
+        config.log_every = args.log_every
+    
+    # Define custom milestones for validation curves and autosetup logging
+    # For 8M benchmark (approx 488 steps)
+    if config.train_tokens <= 8000000:
+        config.eval_milestones = (0, 50, 100, 150, 200, 300, 400)
+        config.log_every = 50
+        config.eval_every = None  # Only use milestones
+    # For 20M benchmark (approx 1220 steps)
+    elif config.train_tokens <= 20000000:
+        config.eval_milestones = (0, 100, 250, 500, 750, 1000)
+        config.log_every = 100
+        config.eval_every = None
+    # For 100M benchmark (approx 6100 steps)
+    elif config.train_tokens <= 100000000:
+        config.eval_milestones = (0, 500, 1000, 2000, 3000, 4000, 5000)
+        config.log_every = 250
+        config.eval_every = None
+    # For 1B benchmark (approx 61000 steps)
+    else:
+        config.eval_milestones = (0, 1000, 5000, 10000, 20000, 30000, 40000, 50000)
+        config.log_every = 1000
+        config.eval_every = None
+    
+    # Allow command line override ONLY if explicitly provided (argparse default check)
+    if args.log_every != 100: # 100 is the default in parser
         config.log_every = args.log_every
     
     use_warmup = (args.warmup.lower() == "true")
