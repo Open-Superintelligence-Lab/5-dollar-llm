@@ -35,7 +35,7 @@ def train():
         
         return {"input_ids": input_ids, "labels": labels}
 
-    dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True, collate_fn=collate_fn)
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True, collate_fn=collate_fn, num_workers=4, pin_memory=True)
     
     # 3. Optimizer
     # MinimalLLM has tied weights. setup_muon_optimizer handles parameter separation.

@@ -37,5 +37,5 @@ class MultimodalConfig(BlueberryConfig):
     max_seq_len: int = 2024
     
     # Training overrides
-    batch_size: int = 16 # Doubled to increase memory usage
-    muon_lr: float = 0.02 # Baseline LR for Muon
+    batch_size: int = 20 # Increased to push memory usage towards 80-90%
+    muon_lr: float = 0.02 # Found to be optimal via LR search
