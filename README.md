@@ -19,22 +19,7 @@ Help us build top 10 LLM in the world while keeping it fully open source, which 
 
 Can you make our LLM train faster and better?
 
-👉 **[Full Setup Guide](docs/SETUP_INSTRUCTIONS.md)** | **[Leaderboard](docs/LEADERBOARD.md)** | **[Multimodal Guide](README_Multimodal.md)**
-
----
-
-## 🎨 Multimodal Image Generation (Hard Mode)
-
-We have successfully implemented **"Hard Mode" Multimodal Image Generation**—building a mini-version of **Google Parti** or **DeepSeek Janus** from ground zero with **zero pre-trained weights**.
-
-### How it works:
-1.  **Visual Tokenizer**: A custom **VQ-VAE** compresses 128x128 images into a 32x32 grid of discrete "visual words".
-2.  **Multimodal Transformer**: A 40M parameter Llama-style transformer trained to predict both text and visual tokens in a single unified stream.
-3.  **Unified Vocabulary**: Text (49k) + Image (1k) tokens interleaved: `[BOS] {text} <seg_start> {visual_tokens} <seg_end> [EOS]`.
-4.  **Optimized Training**: Powered by the **Muon optimizer** and **Mixed Precision (Bfloat16)**, allowing for high-quality image synthesis on a single GPU.
-
-### Achievement:
-The model has been scaled to **1,000,000 training sequences** on CIFAR-10, demonstrating the ability to generate class-specific images (frogs, birds, cars, etc.) from scratch in an autoregressive fashion.
+👉 **[Full Setup Guide](docs/SETUP_INSTRUCTIONS.md)** | **[Leaderboard](docs/LEADERBOARD.md)**
 
 ---
 
