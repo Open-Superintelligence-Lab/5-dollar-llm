@@ -43,8 +43,8 @@ def zeropower_polar_express(G:torch.Tensor, steps: int = 5,):
 
 class Muon(torch.optim.Optimizer):
     """Muon - MomentUm Orthogonalized by Polar Express / Newton Schulz"""
-    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, ns_steps=5):
-        defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, ns_steps=ns_steps)
+    def __init__(self, params, lr=0.02, momentum=0.95, weight_decay=0.0, nesterov=True, ns_steps=5):
+        defaults = dict(lr=lr, momentum=momentum, weight_decay=weight_decay, nesterov=nesterov, ns_steps=ns_steps)
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -63,6 +63,11 @@ class Muon(torch.optim.Optimizer):
                 buf = state["momentum_buffer"]
                 buf.lerp_(g, 1 - group["momentum"])
                 g = g.lerp_(buf, group["momentum"]) if group["nesterov"] else buf
+                
+                # Weight decay (decoupled)
+                if group["weight_decay"] > 0:
+                    p.add_(p, alpha=-group["lr"] * group["weight_decay"])
+
                 g = zeropower_polar_express(g, steps=group["ns_steps"]) # steps are 5 for both ns and pe
                 g = g.to(p.dtype)
                 p.add_(g.view_as(p), alpha=-group["lr"] * max(1, p.size(-2) / p.size(-1))**0.5)

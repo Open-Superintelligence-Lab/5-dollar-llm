@@ -61,7 +61,12 @@ def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
     print(f"  Muon parameters: {sum(p.numel() for p in muon_params):,}")
     print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
 
-    muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
+    muon_optimizer = Muon(
+        muon_params, 
+        lr=config.muon_lr, 
+        momentum=config.muon_momentum,
+        weight_decay=config.weight_decay # Pass weight decay to Muon
+    )
     adamw_optimizer = torch.optim.AdamW(
         adamw_params,
         lr=config.adamw_lr,
@@ -548,6 +553,30 @@ def train_minimal_llm(
                 # Decay factor = 1 / (1 + lambda * eta_max * t)
                 denom = 1 + (wd * lr_peak * t)
                 return 1.0 / denom
+
+        elif schedule_type == 'inverse_sqrt':
+            # Formula from article: 
+            # eta_s = eta_max / sqrt(2 * lambda_max * eta_max * s + 1)
+            # lambda_s = lambda_max / sqrt(2 * lambda_max * eta_max * s + 1)
+            
+            wd_peak = optimizer.defaults.get('weight_decay', 0.1)
+            lr_peak = optimizer.defaults['lr']
+            
+            def lr_lambda(current_step, warmup=warmup_steps, wd_peak=wd_peak, lr_peak=lr_peak, optimizer=optimizer):
+                if current_step < warmup:
+                    return current_step / warmup
+                
+                # Time since peak
+                t = current_step - warmup
+                # Scale factor = 1 / sqrt(2 * lambda * eta * t + 1)
+                scale = 1.0 / math.sqrt(2 * wd_peak * lr_peak * t + 1)
+                
+                # Update weight decay in param groups as a side effect
+                for group in optimizer.param_groups:
+                    if 'weight_decay' in group:
+                        group['weight_decay'] = wd_peak * scale
+                        
+                return scale
 
         else:  # constant
             def lr_lambda(current_step, warmup=warmup_steps):
