@@ -9,9 +9,22 @@ credit: "Translated and adapted from original work by Jianlin Su (kexue.fm)"
 
 > **Note**: This article is translated and adapted from the original Chinese blog post by **Jianlin Su** at [kexue.fm](https://kexue.fm/archives/11459). We have expanded on the original derivations and added further technical context, making it more accessibe to wider audience.
 
-Weight Decay and Learning Rate are critical components of LLM pre-training; whether they are set appropriately is one of the key factors determining the ultimate success or failure of a model. Since the introduction of **AdamW**, it has basically become a consensus to decouple Weight Decay to replace traditional L2 regularization. However, beyond this, there has been no significant theoretical progress on how to reasonably set Weight Decay and Learning Rate.
+### Introduction
 
-This article aims to initiate a discussion by sharing some of the author's new understandings of this problem: viewing the training process as a "sliding average memory" of the training data, and exploring how to set Weight Decay and Learning Rate to make this memory more scientific.
+Defining the right **Weight Decay** and **Learning Rate** is fundamental to training Large Language Models. These two numbers decide whether your model becomes smart or fails completely. While modern optimizers like **AdamW** have improved things, we still lack a clear scientific theory for how to set these values perfectly.
+
+This article introduces a new perspective: viewing the training process as a **"Sliding Average Memory."**
+
+Instead of just "updating parameters," imagine your model is building a long-term memory of the data it sees. Weight Decay and Learning Rate control how fast this memory updates and how quickly it forgets.
+
+**Here is what we will learn, step by step:**
+
+1.  **The Sliding Average View**: First, we will demystify the optimization process. We'll show that updating a model's weights isn't magic—it's mathematically identical to calculating a **"weighted moving average"** of the gradients. This simple shift in perspective is the key that unlocks the rest of our analysis.
+2.  **Unrolling the History**: Does a model remember the very first batch of data it saw? We will "unroll" the recursive training steps to trace exactly how past data contributes to the current model weights, revealing how older information slowly fades over time.
+3.  **The Memory Period**: Just like humans, models forget. We will derive a precise formula for the **"Memory Period"**—calculating exactly how many steps a specific piece of training data stays relevant in the model's "mind" before it vanishes completely.
+4.  **The Optimal Schedule**: Finally, we will answer the practical questions. We'll use our new formulas to mathematically prove that the Learning Rate shouldn't be chosen randomly. Instead, we'll derive an **"Inverse Square Root"** schedule that perfectly balances acquiring new information while retaining the old.
+
+Whether you are a student trying to understand the basics or a researcher optimizing a massive run, this guide will give you a deeper, intuitive understanding of the mechanics behind LLM training.
 
 ### Sliding Average #
 
@@ -356,16 +369,17 @@ To verify the theoretical derivation of the "Optimal Schedule," we conducted a b
 | **Eq 17 Variation** | Inverse Sqrt | No | 0.2 | 4.76 |
 | **Eq 16 Variation** | Inverse Time | No | 0.2 | 4.85 |
 
-**Full Sweep Results (Loss vs Steps & Time):**
+**Full Sweep Visualization (Steps, Time, and Zoomed View):**
 
 ![Full Sweep Comparison](./assets/full_sweep_comparison.png)
 
-**Results Analysis:**
+**Theoretical Insights and Empirical Learnings:**
 
-The experimental results strongly validate the mathematical derivations in this article. Specifically:
-1.  **Inverse Sqrt Superiority**: The $1/\sqrt{s}$ schedule (Eq 17) consistently outperformed the $1/s$ schedule (Eq 16) and the constant baseline, confirming the "equal batch weighting" theory for adaptive optimizers.
-2.  **Coupling Effectiveness**: Decaying Weight Decay along with the Learning Rate maintained a lower validation loss, provided the initial magnitude was sufficient. The "Optimal" configuration (Eq 17 with Coupled WD=0.4) yielded the best overall performance.
-3.  **Stability**: All inverse-root schedules showed remarkably stable convergence compared to static benchmarks, validating the "sliding average" interpretation of training as a continuous smoothing process towards a shifting equilibrium point.
+The benchmark results provide conclusive empirical support for the article's core mathematical premises:
+
+1.  **Validation of Equal Batch Weighting**: The superiority of the Inverse Sqrt schedule ($1/\sqrt{s}$) over the Inverse Time schedule ($1/s$) confirms that for adaptive optimizers like Muon, treating every gradient step as contributing equal incremental information is the "Optimal" strategy. The $1/s$ schedule decays too aggressively, essentially "wasting" the high-quality data seen in later stages of training.
+2.  **Coupling as an Information Stabilizer**: Decaying Weight Decay alongside the Learning Rate (coupling) acts as a critical mechanism to maintain a consistent "Memory Period" relative to the training progress. The zoomed-in plot reveals that Experiment 6 (Coupled, WD=0.4) achieves the smoothest and deepest convergence, whereas constant WD configurations eventually hit a plateau where the regularization becomes misaligned with the effective step size.
+3.  **Enhanced Sample and Temporal Efficiency**: The "Optimal" schedule isn't just better in terms of final loss; it is significantly more efficient. By maintaining a theoretically calibrated training trajectory, we extract more value from every 1M tokens, achieving lower loss in less wall-clock time than standard constant-parameter baselines.
 
 ### Summary #
 
