@@ -213,8 +213,10 @@ def main():
     parser.add_argument("--batch_size", type=int, help="Override batch_size")
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
+    parser.add_argument("--weight_decay", type=float, help="Override weight decay")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
-    parser.add_argument("--schedule_type", type=str, help="Override schedule_type (cosine, linear, constant, inverse_time)")
+    parser.add_argument("--schedule_type", type=str, help="Override schedule_type (cosine, linear, constant, inverse_time, inverse_sqrt)")
+    parser.add_argument("--coupled_wd", type=str, default="true", help="Whether to scale weight decay along with learning rate (true/false)")
 
     args = parser.parse_args()
 
@@ -251,10 +253,14 @@ def main():
         config.batch_size = args.batch_size
     if args.gradient_accumulation_steps is not None:
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
+    if args.weight_decay is not None:
+        config.weight_decay = args.weight_decay
     if args.log_every is not None:
         config.log_every = args.log_every
     if args.schedule_type is not None:
         config.schedule_type = args.schedule_type
+    
+    config.coupled_wd = (args.coupled_wd.lower() == "true")
     
     # Define custom milestones for validation curves and autosetup logging
     # For 8M benchmark (approx 488 steps)

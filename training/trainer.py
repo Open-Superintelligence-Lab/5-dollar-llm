@@ -527,32 +527,26 @@ def train_minimal_llm(
                     return current_step / warmup
                 progress = (current_step - warmup) / max(1, total - warmup)
                 return max(0.1, 1.0 - progress)
-        elif schedule_type == 'inverse_time':
-            # Formula from article: eta = eta_max / (1 + lambda * eta_max * t)
-            # We apply this after warmup.
-            # lambda (weight_decay) and eta_max (lr) are taken from config/optimizer defaults.
-            # Since LambdaLR scales the base LR, we just return the decay factor.
-            
-            # We need to capture the specific optimizer's params for the formula
-            # But LambdaLR function only takes `step`. 
-            # We can capture the specific weight decay and peak LR from the optimizer instance outside.
-            wd = optimizer.defaults.get('weight_decay', 0.1) # Default to some value if missing, but it should be there for AdamW
+            wd_peak = optimizer.defaults.get('weight_decay', 0.1)
             lr_peak = optimizer.defaults['lr']
+            coupled = getattr(config, 'coupled_wd', True)
             
-            # The article implies the "time" s is the number of steps.
-            # If we utilize warmup, we treat the end of warmup as t=0 for the decay curve for smoothness,
-            # or we just use raw steps.
-            # Let's align t=0 with the start of decay (end of warmup) to ensure continuity at peak.
-            
-            def lr_lambda(current_step, warmup=warmup_steps, wd=wd, lr_peak=lr_peak):
+            def lr_lambda(current_step, warmup=warmup_steps, wd_peak=wd_peak, lr_peak=lr_peak, optimizer=optimizer, coupled=coupled):
                 if current_step < warmup:
                     return current_step / warmup
                 
                 # Time since peak
                 t = current_step - warmup
                 # Decay factor = 1 / (1 + lambda * eta_max * t)
-                denom = 1 + (wd * lr_peak * t)
-                return 1.0 / denom
+                scale = 1.0 / (1 + wd_peak * lr_peak * t)
+                
+                if coupled:
+                    # Update weight decay in param groups
+                    for group in optimizer.param_groups:
+                        if 'weight_decay' in group:
+                            group['weight_decay'] = wd_peak * scale
+                        
+                return scale
 
         elif schedule_type == 'inverse_sqrt':
             # Formula from article: 
@@ -561,8 +555,9 @@ def train_minimal_llm(
             
             wd_peak = optimizer.defaults.get('weight_decay', 0.1)
             lr_peak = optimizer.defaults['lr']
+            coupled = getattr(config, 'coupled_wd', True)
             
-            def lr_lambda(current_step, warmup=warmup_steps, wd_peak=wd_peak, lr_peak=lr_peak, optimizer=optimizer):
+            def lr_lambda(current_step, warmup=warmup_steps, wd_peak=wd_peak, lr_peak=lr_peak, optimizer=optimizer, coupled=coupled):
                 if current_step < warmup:
                     return current_step / warmup
                 
@@ -571,10 +566,11 @@ def train_minimal_llm(
                 # Scale factor = 1 / sqrt(2 * lambda * eta * t + 1)
                 scale = 1.0 / math.sqrt(2 * wd_peak * lr_peak * t + 1)
                 
-                # Update weight decay in param groups as a side effect
-                for group in optimizer.param_groups:
-                    if 'weight_decay' in group:
-                        group['weight_decay'] = wd_peak * scale
+                if coupled:
+                    # Update weight decay in param groups
+                    for group in optimizer.param_groups:
+                        if 'weight_decay' in group:
+                            group['weight_decay'] = wd_peak * scale
                         
                 return scale
 
