@@ -5,6 +5,7 @@ from torchtune.modules import RotaryPositionalEmbeddings
 from .components import SquaredReLUFeedForward
 from torch.nn.attention.flex_attention import (
     flex_attention,
+    and_masks,
     create_block_mask,
     BlockMask,
 )
@@ -127,8 +128,10 @@ class TransformerBlock(nn.Module):
         max_seq_len: int,
         dropout: float = 0.1,
         n_kv_heads: int | None = None,
+        eos_token: int | None = None,
     ):
         super().__init__()
+        self.eos_token = eos_token
 
         self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
         self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
@@ -138,16 +141,21 @@ class TransformerBlock(nn.Module):
         self.norm2 = nn.RMSNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def gen_mask(self):
+    def gen_mask(self, x):
+        doc = (x == self.eos_token).cumsum(dim=1)
+
+        def document_mask(b, h, q_idx, kv_idx):
+            return doc[b, q_idx] == doc[b, kv_idx]
+
         def casual_mask(b, h, q_idx, kv_idx):
             return q_idx >= kv_idx
 
-        return casual_mask
+        return and_masks(casual_mask, document_mask)
 
     def forward(self, x):
         # Self-attention
         batch_size, seq_len = x.size(0), x.size(1)
-        mask_mod = self.gen_mask()
+        mask_mod = self.gen_mask(x)
         mask = create_block_mask(
             mask_mod, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len, _compile=True
         )

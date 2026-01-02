@@ -9,7 +9,7 @@ from models.layers import TransformerBlock
 class MinimalLLM(nn.Module):
     """Minimal dense LLM"""
 
-    def __init__(self, config: BlueberryConfig):
+    def __init__(self, config: BlueberryConfig, eos_token: int | None = None):
         super().__init__()
         self.config = config
 
@@ -27,6 +27,7 @@ class MinimalLLM(nn.Module):
                     config.max_seq_len,
                     config.dropout,
                     n_kv_heads=config.n_kv_heads,
+                    eos_token=eos_token,
                 )
                 for i in range(config.n_layers)
             ]
