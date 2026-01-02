@@ -106,6 +106,9 @@ class MultiHeadAttention(nn.Module):
         attn_output = attn_output * F.sigmoid(
             self.atten_gate(x[..., : self.atten_gate.in_features])
         ).view(batch_size, seq_len, self.n_heads, 1)
+        attn_output = attn_output.contiguous().reshape(
+            batch_size, seq_len, self.d_model
+        )
         # ============ MERGED O PROJECTION ============
         # Use the last part of qkvo_proj for output projection
         return F.linear(attn_output, self.qkvo_proj[self.qkv_size:])
