@@ -100,7 +100,7 @@ class MultiHeadAttention(nn.Module):
         
         # Reshape output
         attn_output = attn_output.transpose(1, 2).reshape(
-            batch_size, seq_len, self.d_model
+            batch_size, seq_len, self.n_heads, self.d_k
         )
         # Sparse attention
         attn_output = attn_output * F.sigmoid(
