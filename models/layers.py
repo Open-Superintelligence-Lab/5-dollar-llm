@@ -34,49 +34,75 @@ class MultiHeadAttention(nn.Module):
         self.n_kv_heads = n_kv_heads if n_kv_heads is not None else n_heads
         self.num_key_value_groups = self.n_heads // self.n_kv_heads
         self.d_k = d_model // n_heads
-
-        self.q_proj = nn.Linear(d_model, d_model, bias=False)
-        self.k_proj = nn.Linear(d_model, self.n_kv_heads * self.d_k, bias=False)
-        self.v_proj = nn.Linear(d_model, self.n_kv_heads * self.d_k, bias=False)
-        self.w_o = nn.Linear(d_model, d_model, bias=False)
+        
+        # ============ MERGED QKVO PROJECTION ============
+        # Instead of 4 separate Linear layers, use single merged projection
+        q_size = d_model
+        kv_size = self.n_kv_heads * self.d_k
+        o_size = d_model
+        
+        self.q_size = q_size
+        self.kv_size = kv_size
+        self.qkv_size = q_size + 2 * kv_size  # Q + K + V sizes
+        
+        # Single parameter tensor for all projections
+        # Shape: [Q_size + K_size + V_size + O_size, d_model]
+        self.qkvo_proj = nn.Parameter(
+            torch.empty(q_size + 2 * kv_size + o_size, d_model)
+        )
+        
+        # Initialize all weights with std=0.02
+        with torch.no_grad():
+            torch.nn.init.normal_(self.qkvo_proj, mean=0.0, std=0.02)
+        # ================================================
+        
         self.q_norm = nn.RMSNorm(self.d_k)
         self.k_norm = nn.RMSNorm(self.d_k)
+        
         self.rotary = Rotary(self.d_k, max_seq_len)
         self.dropout = dropout
 
     def forward(self, x):
         batch_size, seq_len = x.size(0), x.size(1)
-
-        # Calculate queries, keys, and values
-        Q = self.q_proj(x).reshape(
-            batch_size, seq_len, self.n_heads, self.d_k
-        )  # [B, T, H, D]
-        K = self.k_proj(x).reshape(
-            batch_size, seq_len, self.n_kv_heads, self.d_k
-        )  # [B, T, KV_H, D]
-        V = self.v_proj(x).reshape(
-            batch_size, seq_len, self.n_kv_heads, self.d_k
-        )  # [B, T, KV_H, D]
-
+        
+        # ============ MERGED QKV PROJECTION ============
+        # Single matmul instead of 3 separate projections
+        qkv = F.linear(x, self.qkvo_proj[:self.qkv_size])
+        
+        # Split the result into Q, K, V
+        Q, K, V = qkv.split([self.q_size, self.kv_size, self.kv_size], dim=-1)
+        # ================================================
+        
+        # Reshape to multi-head format
+        Q = Q.reshape(batch_size, seq_len, self.n_heads, self.d_k)
+        K = K.reshape(batch_size, seq_len, self.n_kv_heads, self.d_k)
+        V = V.reshape(batch_size, seq_len, self.n_kv_heads, self.d_k)
+        
         # Apply RoPE
         Q = self.rotary(self.q_norm(Q))
         K = self.rotary(self.k_norm(K))
-
+        
         # Repeat K/V for GQA if needed
         if self.n_kv_heads != self.n_heads:
             K = torch.repeat_interleave(K, self.num_key_value_groups, dim=2)
             V = torch.repeat_interleave(V, self.num_key_value_groups, dim=2)
-
+        
+        # Transpose for attention
         Q, K, V = Q.transpose(1, 2), K.transpose(1, 2), V.transpose(1, 2)
-
+        
+        # Compute attention
         attn_output = F.scaled_dot_product_attention(
             Q, K, V, is_causal=True, dropout_p=self.dropout if self.training else 0.0
         )
+        
+        # Reshape output
         attn_output = attn_output.transpose(1, 2).reshape(
             batch_size, seq_len, self.d_model
         )
-        # attn_output = attn_output.transpose(1, 2).reshape(B, T, self.d_model)
-        return self.w_o(attn_output)
+        
+        # ============ MERGED O PROJECTION ============
+        # Use the last part of qkvo_proj for output projection
+        return F.linear(attn_output, self.qkvo_proj[self.qkv_size:])
 
 
 class TransformerBlock(nn.Module):
