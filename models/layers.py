@@ -157,7 +157,7 @@ class TransformerBlock(nn.Module):
         batch_size, seq_len = x.size(0), x.size(1)
         mask_mod = self.gen_mask(x)
         mask = create_block_mask(
-            mask_mod, B=None, H=None, Q_LEN=seq_len, KV_LEN=seq_len, _compile=True
+            mask_mod, B=batch_size, H=None, Q_LEN=seq_len, KV_LEN=seq_len, _compile=True
         )
         attn_out = self.attention(self.norm1(x), mask)
         x = x + self.dropout(attn_out)
