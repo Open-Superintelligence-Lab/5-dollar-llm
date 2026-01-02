@@ -27,7 +27,6 @@ class MinimalLLM(nn.Module):
                     config.max_seq_len,
                     config.dropout,
                     n_kv_heads=config.n_kv_heads,
-                    eos_token=eos_token,
                 )
                 for i in range(config.n_layers)
             ]
