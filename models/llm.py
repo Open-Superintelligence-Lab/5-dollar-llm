@@ -56,8 +56,18 @@ class MinimalLLM(nn.Module):
         x = self.position_dropout(x)
 
         # Pass through transformer blocks
-        for block in self.transformer_blocks:
+        # Pass through transformer blocks
+        skip_connections = []
+        n_layers = len(self.transformer_blocks)
+        
+        for i, block in enumerate(self.transformer_blocks):
             x = block(x)
+            
+            # U-Net skip connections
+            if i < n_layers // 2:
+                skip_connections.append(x)
+            elif skip_connections:
+                x = x + skip_connections.pop()
 
         # Output projection
         x = self.norm(x)

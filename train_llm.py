@@ -332,7 +332,7 @@ def main():
 
     loader_args = dict(
         batch_size=config.batch_size,
-        num_workers=2,
+        num_workers=4,
         pin_memory=torch.cuda.is_available(),
         persistent_workers=True,
         worker_init_fn=worker_init_fn,

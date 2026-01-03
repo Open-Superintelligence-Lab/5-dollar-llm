@@ -61,7 +61,13 @@ def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
     print(f"  Muon parameters: {sum(p.numel() for p in muon_params):,}")
     print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
 
-    muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
+    muon_optimizer = Muon(
+        muon_params, 
+        lr=config.muon_lr, 
+        momentum=config.muon_momentum, 
+        ns_steps=config.ns_steps,
+        drop_prob=getattr(config, "muon_drop_prob", 0.0)
+    )
     adamw_optimizer = torch.optim.AdamW(
         adamw_params,
         lr=config.adamw_lr,
@@ -467,7 +473,7 @@ def train_minimal_llm(
         # Keep a reference to the original model for state restoration
         orig_model = model
         try:
-            model = torch.compile(model)
+            model = torch.compile(model, mode="reduce-overhead")
             print("✅ Model compiled successfully")
             
             # ============================================
