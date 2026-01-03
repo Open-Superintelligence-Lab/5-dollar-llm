@@ -357,6 +357,7 @@ def main():
         val_loader, 
         output_dir=output_dir, 
         load_weights_path=args.load_checkpoint,
+        eos_token=tokenizer.eos_token_id,
     )
 
 
