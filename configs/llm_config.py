@@ -50,6 +50,14 @@ class BlueberryConfig:
     # Logging
     log_milestones: Tuple[int, ...] = (100, 500, 1000)
 
+    # Engram Parameters
+    # Layers at which to insert memory (0-indexed)
+    engram_layers: Tuple[int, ...] = (2, 18) 
+    engram_vocab_size: int = 200000
+    engram_dim: Optional[int] = None # Defaults to d_model
+    engram_num_heads: int = 2
+    engram_ngrams: Tuple[int, ...] = (2, 3)
+
     def __post_init__(self):
         self.d_k = self.d_model // self.n_heads
         assert self.d_model % self.n_heads == 0, "d_model must be divisible by n_heads"

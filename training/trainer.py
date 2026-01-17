@@ -53,6 +53,7 @@ def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
         if (param.ndim == 2 and 
             'token_embedding' not in name and 
             'norm' not in name and 
+            'engram' not in name and
             param.requires_grad):
             muon_params.append(param)
         else:
@@ -62,6 +63,12 @@ def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
     print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
 
     muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
+    
+    # Check if we should split AdamW groups (e.g. for Engram)
+    # Paper: "Embedding parameters are optimized with a larger learning rate and no weight decay"
+    # For now, we use global AdamW settings, but we could split groups here.
+    # Let's keep it simple: Add Engram params to AdamW.
+    
     adamw_optimizer = torch.optim.AdamW(
         adamw_params,
         lr=config.adamw_lr,
@@ -432,6 +439,7 @@ def train_minimal_llm(
     output_dir: Optional[str] = None,
     load_weights_path: Optional[str] = None,
     compare_baseline: bool = False,
+    tokenizer: Optional[Any] = None,
 ):
     print(f"\n🚀 Training dense model")
     setup_start = time.time()
@@ -441,7 +449,8 @@ def train_minimal_llm(
     # 1. Initialize model with fixed seed
     # ============================================
     set_seed(42)
-    model = MinimalLLM(config)
+    # Pass tokenizer to model init for Engram support
+    model = MinimalLLM(config, tokenizer=tokenizer)
     model = model.to(device)
     
     # Load pretrained weights if specified

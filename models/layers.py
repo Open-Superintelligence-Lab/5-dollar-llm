@@ -116,18 +116,41 @@ class TransformerBlock(nn.Module):
         max_seq_len: int,
         dropout: float = 0.1,
         n_kv_heads: int | None = None,
+        engram_module: nn.Module | None = None,
     ):
         super().__init__()
 
         self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
         self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
+        self.engram = engram_module
 
         # Normalization layers
         self.norm1 = nn.RMSNorm(d_model)
         self.norm2 = nn.RMSNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor, input_ids: torch.Tensor | None = None):
+        # Apply Engram Memory if present (residual connection handled inside or here?)
+        # Paper says: H(l) = H(l) + Y
+        # Our EngramModule returns Y (the gated memory).
+        # We should apply it BEFORE or AFTER attention? 
+        # Paper Figure 1 shows: Engram applied to the backbone residual stream
+        # "Input Hidden -> Engram -> + -> Attention -> MoE"
+        # So it happens BEFORE the block's main content? Or parallel?
+        # The equation: H(l) <- H(l) + Y, followed by standard Attention and MoE.
+        # So it's effectively a pre-block augmentation.
+        # But wait, Engram Gating uses h_t. Which h_t? 
+        # "we utilize the current hidden state h_t... as a dynamic Query"
+        # If it's before attention, h_t is the input to the block.
+        
+        if self.engram is not None:
+            if input_ids is None:
+                raise ValueError("Engram layer requires input_ids")
+            
+            # Engram forward: returns component to add to residual
+            mem_out = self.engram(x, input_ids)
+            x = x + mem_out
+
         # Self-attention
         attn_out = self.attention(self.norm1(x))
         x = x + self.dropout(attn_out)
