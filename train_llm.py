@@ -214,6 +214,12 @@ def main():
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
+    
+    # mHC (Manifold-Constrained Hyper-Connections) arguments
+    parser.add_argument("--use_mhc", action="store_true", help="Use Manifold-Constrained Hyper-Connections instead of standard residual")
+    parser.add_argument("--mhc_expansion_rate", type=int, default=4, help="mHC expansion rate (number of streams)")
+    parser.add_argument("--mhc_alpha_init", type=float, default=0.01, help="mHC gating factor initial value")
+    parser.add_argument("--mhc_sinkhorn_iters", type=int, default=20, help="mHC Sinkhorn-Knopp iterations")
 
     args = parser.parse_args()
 
@@ -252,6 +258,13 @@ def main():
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
     if args.log_every is not None:
         config.log_every = args.log_every
+    
+    # Apply mHC arguments
+    if args.use_mhc:
+        config.use_mhc = True
+        config.mhc_expansion_rate = args.mhc_expansion_rate
+        config.mhc_alpha_init = args.mhc_alpha_init
+        config.mhc_sinkhorn_iters = args.mhc_sinkhorn_iters
     
     # Define custom milestones for validation curves and autosetup logging
     # For 8M benchmark (approx 488 steps)

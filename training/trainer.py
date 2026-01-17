@@ -13,6 +13,7 @@ from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
 from configs.llm_config import BlueberryConfig
 from models.llm import MinimalLLM
+from models.llm_mhc import MinimalLLM_mHC
 from optimizers.muon import Muon
 from training.evaluation import evaluate_model
 from utils.helpers import set_seed, format_time
@@ -441,7 +442,13 @@ def train_minimal_llm(
     # 1. Initialize model with fixed seed
     # ============================================
     set_seed(42)
-    model = MinimalLLM(config)
+    
+    # Choose model architecture based on config
+    if getattr(config, 'use_mhc', False):
+        print("📐 Using Manifold-Constrained Hyper-Connections (mHC)")
+        model = MinimalLLM_mHC(config)
+    else:
+        model = MinimalLLM(config)
     model = model.to(device)
     
     # Load pretrained weights if specified
