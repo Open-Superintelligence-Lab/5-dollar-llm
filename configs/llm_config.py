@@ -13,6 +13,15 @@ class BlueberryConfig:
     # GQA parameters
     n_kv_heads: int = 4      
     
+    # mHC (Manifold-Constrained Hyper-Connections) parameters
+    use_mhc: bool = False                    # Enable mHC instead of standard residual
+    mhc_expansion_rate: int = 4              # Number of streams (n in paper)
+    mhc_alpha_init: float = 0.01             # Initial gating factor for dynamic mappings
+    mhc_sinkhorn_iters: int = 20             # Sinkhorn-Knopp iterations for doubly stochastic
+    mhc_leading_dense_layers: int = 1        # Number of initial layers using standard residual
+    mhc_stream_init: str = "replicate"       # How to initialize streams: replicate, zeros_except_first, learned
+    mhc_stream_contract: str = "mean"        # How to contract streams: mean, first, learned
+    
     # Data params
     # ⚠️ WARNING: For simplicity, I recomend not changing max_seq_len
     # If you change max_seq_len, you MUST re-run data preparation!
