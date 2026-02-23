@@ -88,6 +88,14 @@ def prepare_pretraining_data(args):
     with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
     print(f"📝 Saved preparation metadata: max_seq_len={chunk_size}")
+
+    if args.push_to_hub:
+        if not args.repo_id:
+            print("❌ Error: --repo_id is required when --push_to_hub is used.")
+        else:
+            print(f"📤 Pushing to Hugging Face Hub: {args.repo_id}...")
+            ds.push_to_hub(args.repo_id, private=args.private)
+            print("✅ Push complete!")
     
     print("Cleaning up...")
     os.remove(jsonl_path)
@@ -95,10 +103,13 @@ def prepare_pretraining_data(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target_tokens", type=int, default=22_000_000, help="Number of tokens to prepare according to the benchmark you will use: 8M, 20M, 100M, 1B. Prepare a bit more tokens.")
+    parser.add_argument("--target_tokens", type=int, default=22_000_000, help="Number of tokens to prepare (e.g., 8M, 20M, 100M, 1B, 2B)")
     parser.add_argument("--output_dir", type=str, default="./processed_data", help="Output directory")
     parser.add_argument("--tokenizer_name", type=str, default="HuggingFaceTB/SmolLM2-135M", help="Tokenizer")
     parser.add_argument("--max_seq_len", type=int, default=None, help="Max sequence length (defaults to config value)")
+    parser.add_argument("--push_to_hub", action="store_true", help="Push the processed dataset to Hugging Face Hub")
+    parser.add_argument("--repo_id", type=str, help="Hugging Face repository ID (e.g., 'username/dataset-name')")
+    parser.add_argument("--private", action="store_true", help="Make the Hugging Face repository private")
     
     args = parser.parse_args()
     prepare_pretraining_data(args)
