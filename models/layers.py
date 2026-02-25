@@ -3,7 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchtune.modules import RotaryPositionalEmbeddings
 from .components import SquaredReLUFeedForward
-
+from torch.nn.attention.flex_attention import (
+    flex_attention,
+    BlockMask,
+)
 
 class Rotary(nn.Module):
     def __init__(self, dim: int, max_seq_len: int):
@@ -34,7 +37,10 @@ class MultiHeadAttention(nn.Module):
         self.n_kv_heads = n_kv_heads if n_kv_heads is not None else n_heads
         self.num_key_value_groups = self.n_heads // self.n_kv_heads
         self.d_k = d_model // n_heads
-        
+
+        # Sparse attention gate
+        self.atten_gate = nn.Linear(12, n_heads, bias=False)
+        nn.init.zeros_(self.atten_gate.weight)
         # ============ MERGED QKVO PROJECTION ============
         # Instead of 4 separate Linear layers, use single merged projection
         q_size = d_model
@@ -62,7 +68,7 @@ class MultiHeadAttention(nn.Module):
         self.rotary = Rotary(self.d_k, max_seq_len)
         self.dropout = dropout
 
-    def forward(self, x):
+    def forward(self, x, mask: BlockMask):
         batch_size, seq_len = x.size(0), x.size(1)
         
         # ============ MERGED QKV PROJECTION ============
@@ -91,15 +97,19 @@ class MultiHeadAttention(nn.Module):
         Q, K, V = Q.transpose(1, 2), K.transpose(1, 2), V.transpose(1, 2)
         
         # Compute attention
-        attn_output = F.scaled_dot_product_attention(
-            Q, K, V, is_causal=True, dropout_p=self.dropout if self.training else 0.0
-        )
+        attn_output = flex_attention(Q, K, V, block_mask=mask)
         
         # Reshape output
         attn_output = attn_output.transpose(1, 2).reshape(
+            batch_size, seq_len, self.n_heads, self.d_k
+        )
+        # Sparse attention
+        attn_output = attn_output * F.sigmoid(
+            self.atten_gate(x[..., : self.atten_gate.in_features])
+        ).view(batch_size, seq_len, self.n_heads, 1)
+        attn_output = attn_output.contiguous().reshape(
             batch_size, seq_len, self.d_model
         )
-        
         # ============ MERGED O PROJECTION ============
         # Use the last part of qkvo_proj for output projection
         return F.linear(attn_output, self.qkvo_proj[self.qkv_size:])
@@ -127,9 +137,9 @@ class TransformerBlock(nn.Module):
         self.norm2 = nn.RMSNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x, mask: BlockMask):
         # Self-attention
-        attn_out = self.attention(self.norm1(x))
+        attn_out = self.attention(self.norm1(x), mask)
         x = x + self.dropout(attn_out)
 
         # Feed-forward

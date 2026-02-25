@@ -432,6 +432,7 @@ def train_minimal_llm(
     output_dir: Optional[str] = None,
     load_weights_path: Optional[str] = None,
     compare_baseline: bool = False,
+    eos_token: int | None = None,
 ):
     print(f"\n🚀 Training dense model")
     setup_start = time.time()
@@ -441,7 +442,7 @@ def train_minimal_llm(
     # 1. Initialize model with fixed seed
     # ============================================
     set_seed(42)
-    model = MinimalLLM(config)
+    model = MinimalLLM(config, eos_token)
     model = model.to(device)
     
     # Load pretrained weights if specified
