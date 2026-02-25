@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchtune.modules import RotaryPositionalEmbeddings
 from .components import SquaredReLUFeedForward
-
+from deepdelta import DeepDeltaRes
 
 class Rotary(nn.Module):
     def __init__(self, dim: int, max_seq_len: int):
@@ -114,6 +114,10 @@ class TransformerBlock(nn.Module):
         n_heads: int,
         d_ff: int,
         max_seq_len: int,
+        # deep delta res
+        beta_dim: int,
+        k_eps: float = 1e-6,
+        sigmoid_scale: float = 4.0,
         dropout: float = 0.1,
         n_kv_heads: int | None = None,
     ):
@@ -121,6 +125,8 @@ class TransformerBlock(nn.Module):
 
         self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
         self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
+        self.ddr1 = DeepDeltaRes(d_model, beta_dim, k_eps, sigmoid_scale)
+        self.ddr2 = DeepDeltaRes(d_model, beta_dim, k_eps, sigmoid_scale)
 
         # Normalization layers
         self.norm1 = nn.RMSNorm(d_model)
@@ -129,10 +135,12 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x):
         # Self-attention
-        attn_out = self.attention(self.norm1(x))
-        x = x + self.dropout(attn_out)
+        norm = self.norm1(x)
+        attn_out = self.attention(norm)
+        x = self.dropout(self.ddr1(x, attn_out, norm))
 
         # Feed-forward
-        ff_out = self.feed_forward(self.norm2(x))
-        x = x + self.dropout(ff_out)
+        norm = self.norm2(x)
+        ff_out = self.feed_forward(norm)
+        x = self.dropout(self.ddr2(x, ff_out, norm))
         return x

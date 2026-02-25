@@ -12,7 +12,10 @@ class BlueberryConfig:
     
     # GQA parameters
     n_kv_heads: int = 4      
-    
+    # Deep Delta res
+    beta_dim: int = 128
+    k_eps: float = 1e-6
+    sigmoid_scale: float = 4.0
     # Data params
     # ⚠️ WARNING: For simplicity, I recomend not changing max_seq_len
     # If you change max_seq_len, you MUST re-run data preparation!

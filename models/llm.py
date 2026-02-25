@@ -25,6 +25,9 @@ class MinimalLLM(nn.Module):
                     config.n_heads,
                     config.d_ff,
                     config.max_seq_len,
+                    config.beta_dim,
+                    config.k_eps,
+                    config.sigmoid_scale,
                     config.dropout,
                     n_kv_heads=config.n_kv_heads,
                 )
