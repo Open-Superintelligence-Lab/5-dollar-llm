@@ -13,6 +13,11 @@ class BlueberryConfig:
     # GQA parameters
     n_kv_heads: int = 4      
     
+    # Hyper-connections parameters
+    use_hyper_connections: bool = False
+    hyper_rate: int = 4
+    hyper_dynamic: bool = True
+    
     # Data params
     # ⚠️ WARNING: For simplicity, I recomend not changing max_seq_len
     # If you change max_seq_len, you MUST re-run data preparation!

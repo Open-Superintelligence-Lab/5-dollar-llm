@@ -136,3 +136,98 @@ class TransformerBlock(nn.Module):
         ff_out = self.feed_forward(self.norm2(x))
         x = x + self.dropout(ff_out)
         return x
+
+
+class HyperConnection(nn.Module):
+    def __init__(self, dim, rate, layer_id, dynamic, device=None):
+        super(HyperConnection, self).__init__()
+        self.rate = rate
+        self.layer_id = layer_id
+        self.dynamic = dynamic
+        self.static_beta = nn.Parameter(torch.ones((rate,), device=device))
+        
+        init_alpha0 = torch.zeros((rate, 1), device=device)
+        init_alpha0[layer_id % rate, 0] = 1.
+        self.static_alpha = nn.Parameter(torch.cat([init_alpha0, torch.eye((rate), device=device)], dim=1))
+        
+        if self.dynamic:
+            self.dynamic_alpha_fn = nn.Parameter(torch.zeros((dim, rate + 1), device=device))
+            self.dynamic_alpha_scale = nn.Parameter(torch.ones(1, device=device) * 0.01)
+            self.dynamic_beta_fn = nn.Parameter(torch.zeros((dim,), device=device))
+            self.dynamic_beta_scale = nn.Parameter(torch.ones(1, device=device) * 0.01)
+        
+        self.layer_norm = nn.LayerNorm(dim)
+
+    def width_connection(self, h):
+        # h: (B, L, N, D)
+        if self.dynamic:
+            norm_h = self.layer_norm(h)
+            
+            wc_weight = norm_h @ self.dynamic_alpha_fn
+            wc_weight = torch.tanh(wc_weight)
+            dynamic_alpha = wc_weight * self.dynamic_alpha_scale
+            alpha = dynamic_alpha + self.static_alpha[None, None, ...]
+            
+            dc_weight = norm_h @ self.dynamic_beta_fn
+            dc_weight = torch.tanh(dc_weight)
+            dynamic_beta = dc_weight * self.dynamic_beta_scale
+            beta = dynamic_beta + self.static_beta[None, None, ...]
+        else:
+            alpha = self.static_alpha[None, None, ...]
+            beta = self.static_beta[None, None, ...]
+            
+        # width connection
+        mix_h = alpha.transpose(-1, -2) @ h
+        return mix_h, beta
+
+    def depth_connection(self, mix_h, h_o, beta):
+        # h_o: output of sub-layer (B, L, D)
+        # beta: (B, L, N)
+        # mix_h: (B, L, N+1, D)
+        h = torch.einsum("blh,bln->blnh", h_o, beta) + mix_h[..., 1:, :]
+        return h
+
+
+class HyperTransformerBlock(nn.Module):
+    """Transformer block with Hyper-connections"""
+
+    def __init__(
+        self,
+        d_model: int,
+        n_heads: int,
+        d_ff: int,
+        max_seq_len: int,
+        layer_id: int,
+        rate: int,
+        dynamic: bool,
+        dropout: float = 0.1,
+        n_kv_heads: int | None = None,
+    ):
+        super().__init__()
+        self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
+        self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
+        
+        self.norm1 = nn.RMSNorm(d_model)
+        self.norm2 = nn.RMSNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+        
+        self.hc1 = HyperConnection(d_model, rate, layer_id * 2, dynamic)
+        self.hc2 = HyperConnection(d_model, rate, layer_id * 2 + 1, dynamic)
+
+    def forward(self, h):
+        # h shape: (B, L, N, D)
+        
+        # --- Sub-layer 1: Attention ---
+        mix_h, beta = self.hc1.width_connection(h)
+        # Input to sub-layer is typically h[..., 0, :]
+        x = mix_h[..., 0, :]
+        attn_out = self.attention(self.norm1(x))
+        h = self.hc1.depth_connection(mix_h, self.dropout(attn_out), beta)
+        
+        # --- Sub-layer 2: Feed-forward ---
+        mix_h, beta = self.hc2.width_connection(h)
+        x = mix_h[..., 0, :]
+        ff_out = self.feed_forward(self.norm2(x))
+        h = self.hc2.depth_connection(mix_h, self.dropout(ff_out), beta)
+        
+        return h
