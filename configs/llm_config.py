@@ -13,6 +13,9 @@ class BlueberryConfig:
     # GQA parameters
     n_kv_heads: int = 4      
     
+    # Muon Drop probability
+    muon_drop_prob: float = 0.1      
+    
     # Data params
     # ⚠️ WARNING: For simplicity, I recomend not changing max_seq_len
     # If you change max_seq_len, you MUST re-run data preparation!
@@ -32,9 +35,10 @@ class BlueberryConfig:
     # Learning Rate (Aggressive for pre-training)
     muon_lr: float = 0.024
     muon_momentum: float = 0.95
-    adamw_lr: float = 0.006
+    adamw_lr: float = 0.015
     warmup_ratio: float = 0.0
-    schedule_type: str = "constant"
+    schedule_type: str = "cosine"
+    ns_steps: int = 3 # ideal for 8M
 
     # Evaluation
     eval_every: Optional[int] = None
@@ -42,7 +46,7 @@ class BlueberryConfig:
     eval_milestones: Optional[Tuple[int, ...]] = None
     
     # Regularization
-    weight_decay: float = 0.2
+    weight_decay: float = 0.1
     dropout: float = 0.0
     grad_clip: float = 1.0
     use_amp: bool = True
