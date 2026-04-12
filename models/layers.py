@@ -94,7 +94,9 @@ class MultiHeadAttention(nn.Module):
         attn_output = F.scaled_dot_product_attention(
             Q, K, V, is_causal=True, dropout_p=self.dropout if self.training else 0.0
         )
-        
+        # XSA
+        Vn = F.normalize(V, dim=-1)
+        attn_output = attn_output - (attn_output * Vn).sum(dim=-1, keepdim=True) * Vn
         # Reshape output
         attn_output = attn_output.transpose(1, 2).reshape(
             batch_size, seq_len, self.d_model
